@@ -1,0 +1,51 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build browser edition
+        run: npm run build
+
+      - name: Upload browser edition
+        uses: actions/upload-artifact@v6
+        with:
+          name: moduleResume-browser-windows-x64
+          path: dist/moduleResume.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build Windows installer
+        run: npm run build:installer
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v6
+        with:
+          name: moduleResume-installer-windows-x64
+          path: dist-installer/moduleResume-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 30

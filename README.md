@@ -46,6 +46,10 @@ node scripts/build_installer.js   # 产物：dist-installer\moduleResume-Setup-<
 
 > 安装版未做代码签名，Windows SmartScreen 首次运行可能提示「未知发布者」，点「更多信息 → 仍要运行」即可。
 
+### GitHub Actions 自动构建
+
+推送到 `main` 分支时，GitHub Actions 会自动构建 Windows x64 网页版单文件 EXE 和桌面安装包；也可以在仓库的 **Actions → Build Windows EXE → Run workflow** 手动启动。构建成功后，在对应运行记录的 **Artifacts** 中下载 `moduleResume-browser-windows-x64` 或 `moduleResume-installer-windows-x64`，产物保留 30 天。安装包未经代码签名。
+
 ## 核心概念
 
 | 概念 | 说明 |
