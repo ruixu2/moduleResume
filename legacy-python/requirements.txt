@@ -1,0 +1,5 @@
+# moduleResume 运行依赖
+fastapi>=0.110
+uvicorn>=0.29
+# 打包 EXE 需要（仅构建时使用）：
+pyinstaller>=6.0
