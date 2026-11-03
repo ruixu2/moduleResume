@@ -6,9 +6,9 @@
 
 ## 许可证
 
-本项目采用自定义的[非商业使用许可证](LICENSE)：允许非商业用途下使用、修改和分发；商业使用须取得权利人另行书面授权。个人制作和管理自己的求职简历属于允许的非商业用途。第三方组件和素材仍遵守各自的许可证。
+本项目采用 [Apache License 2.0](LICENSE)，允许使用、修改、分发和商业使用。分发本项目或包含其代码的衍生作品时，请遵守许可证要求，保留适用的版权和许可声明，并在许可证规定的位置保留 [NOTICE](NOTICE) 中的项目来源署名；修改过的文件须注明修改。第三方组件和素材仍遵守各自的许可证。
 
-本许可证限制商业使用，因此本项目属于源码可查看软件，不符合开源促进会（OSI）的开源定义。此前已依法取得的授权不因本次许可声明变更而自动撤销。
+`NOTICE` 中的署名示例：`This product includes code from moduleResume (https://github.com/ruixu2/moduleResume).` Apache 2.0 的署名要求适用于协议规定的分发情形，协议全文以英文版 [LICENSE](LICENSE) 为准。旧版本可能使用不同许可证，请以相应版本所附许可证为准。
 
 ## 快速开始
 
@@ -56,11 +56,11 @@ node scripts/build_installer.js   # 产物：dist-installer\moduleResume-Setup-<
 
 推送到 `main` 分支时，GitHub Actions 会自动构建 Windows x64 网页版单文件 EXE 和桌面安装包；也可以在仓库的 **Actions → Build Windows EXE → Run workflow** 手动启动。构建成功后，在对应运行记录的 **Artifacts** 中下载 `moduleResume-browser-windows-x64` 或 `moduleResume-installer-windows-x64`，产物保留 30 天。安装包未经代码签名。
 
-推送版本标签时还会自动创建 GitHub Release，将两个 EXE 作为附件发布，并自动生成更新说明。标签必须与 `package.json` 的版本一致；例如版本为 `0.2.1` 时：
+推送版本标签时还会自动创建 GitHub Release，将两个 EXE 作为附件发布，并自动生成更新说明。标签必须与 `package.json` 的版本一致；例如版本为 `0.2.2` 时：
 
 ```bash
-git tag v0.2.1
-git push origin v0.2.1
+git tag v0.2.2
+git push origin v0.2.2
 ```
 
 带预发布标识的版本（例如 `0.3.0-beta.1`）会标记为预发布。普通分支推送和手动构建不会创建 Release；同名 Release 已存在时发布步骤会失败，不会覆盖已有附件。

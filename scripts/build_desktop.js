@@ -59,6 +59,8 @@ function main() {
   fs.copyFileSync(path.join(ROOT, 'package.json'), path.join(appDir, 'package.json'));
   fs.copyFileSync(path.join(ROOT, 'LICENSE'), path.join(appDir, 'LICENSE'));
   fs.copyFileSync(path.join(ROOT, 'LICENSE'), path.join(OUT, 'LICENSE'));
+  fs.copyFileSync(path.join(ROOT, 'NOTICE'), path.join(appDir, 'NOTICE'));
+  fs.copyFileSync(path.join(ROOT, 'NOTICE'), path.join(OUT, 'NOTICE'));
   for (const d of ['backend', 'frontend', 'desktop']) {
     fs.cpSync(path.join(ROOT, d), path.join(appDir, d), { recursive: true });
   }

@@ -145,6 +145,7 @@ async function main() {
     files: [
       'package.json',
       'LICENSE',
+      'NOTICE',
       'backend/**/*',
       'frontend/**/*',
       'desktop/main.js',

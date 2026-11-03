@@ -42,6 +42,7 @@ function main() {
   // 3. 打包（目标：node22 win-x64；虚拟文件系统内嵌 frontend/）
   run(pkgBin, ['run.js', '--targets', 'node22-win-x64', '--output', 'dist/moduleResume.exe', '--compress', 'GZip']);
   fs.copyFileSync(path.join(ROOT, 'LICENSE'), path.join(ROOT, 'dist', 'LICENSE'));
+  fs.copyFileSync(path.join(ROOT, 'NOTICE'), path.join(ROOT, 'dist', 'NOTICE'));
 
   console.log();
   console.log('='.repeat(56));
