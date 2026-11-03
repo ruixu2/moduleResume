@@ -156,6 +156,7 @@ details.jd pre {
 .block-card.t-skill { border-top-color: #5b8fd6; }
 .block-card.t-project { border-top-color: #d97b7b; }
 .block-card.t-internship { border-top-color: #3c9a8a; }
+.block-card.t-academic-service { border-top-color: #627cb2; }
 .block-card.t-award { border-top-color: #c5912e; }
 .block-card.t-paper { border-top-color: #8f6fce; }
 .block-card.t-unpublished-paper { border-top-color: #b98353; }
@@ -186,6 +187,7 @@ details.jd pre {
 .block-badge.t-skill { background: #eaf2fb; color: #24568c; border-color: #d0e0f5; }
 .block-badge.t-project { background: #fdeeee; color: #9c3737; border-color: #f2d3d3; }
 .block-badge.t-internship { background: #e8f6f2; color: #247565; border-color: #bfe3d9; }
+.block-badge.t-academic-service { background: #edf1fb; color: #405989; border-color: #d1dcf0; }
 .block-badge.t-award { background: #fff7e3; color: #8a6017; border-color: #edd9a8; }
 .block-badge.t-paper { background: #f0ecfb; color: #5a3d94; border-color: #dfd5f4; }
 .block-badge.t-unpublished-paper { background: #fbf1e8; color: #8a542a; border-color: #ecd5bf; }

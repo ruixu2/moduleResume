@@ -57,6 +57,8 @@ function main() {
   const defApp = path.join(OUT, 'resources', 'default_app.asar');
   if (fs.existsSync(defApp)) fs.rmSync(defApp);
   fs.copyFileSync(path.join(ROOT, 'package.json'), path.join(appDir, 'package.json'));
+  fs.copyFileSync(path.join(ROOT, 'LICENSE'), path.join(appDir, 'LICENSE'));
+  fs.copyFileSync(path.join(ROOT, 'LICENSE'), path.join(OUT, 'LICENSE'));
   for (const d of ['backend', 'frontend', 'desktop']) {
     fs.cpSync(path.join(ROOT, d), path.join(appDir, d), { recursive: true });
   }

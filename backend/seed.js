@@ -4,7 +4,7 @@
     首次启动后请到「基础信息 / 素材块库」替换为你自己的内容。
 
   blocks     素材块库（唯一事实来源）；type 取值：
-             summary | education | advisor | thesis | skill | project | internship | award | paper | unpublished_paper | patent | custom
+             summary | education | advisor | thesis | skill | project | internship | academic_service | award | paper | unpublished_paper | patent | custom
   variants   岗位定制版本：sections[].items[] 通过 bid 引用素材块，ov 做版本级覆盖
   applications 投递记录
 */

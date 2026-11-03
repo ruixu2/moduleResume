@@ -191,6 +191,18 @@ function sectionItems(section, blocksMap) {
 
 function isEnglish(variant) { return variant && variant.locale === 'en'; }
 function label(variant, zh, en) { return isEnglish(variant) ? en : zh; }
+function paperMetrics(c, variant) {
+  const parts = [c.partition, c.impactFactor ? 'IF: ' + c.impactFactor : ''].filter(Boolean);
+  return parts.length ? label(variant, '（', '(') + parts.join(label(variant, '，', ', ')) + label(variant, '）', ')') : '';
+}
+function paperDetail(c, variant) {
+  const separator = label(variant, '。', '. ');
+  const cite = [c.journal, c.date, c.volume].filter(Boolean).join(', ');
+  let detail = [cite, c.note, c.desc].filter(Boolean).join(separator);
+  const metrics = paperMetrics(c, variant);
+  if (metrics) detail += (detail ? (/[.!?。！？]$/.test(detail) ? label(variant, '', ' ') : separator) : '') + metrics;
+  return detail;
+}
 function awardParts(b, variant) {
   const c = b.content || {};
   return {
@@ -209,6 +221,18 @@ function internshipParts(b, variant) {
     title: b.title || identity || label(variant, '实习经历', 'Internship'),
     meta: [b.title ? identity : '', c.department, c.location, dates].filter(Boolean).join(' ｜ '),
     works: Array.isArray(c.works) ? c.works : [],
+  };
+}
+function academicServiceParts(b, variant) {
+  const c = b.content || {};
+  const identity = [c.organization, c.position].filter(Boolean).join(' · ');
+  const dates = c.start
+    ? [c.start, c.end || label(variant, '至今', 'Present')].map(s => String(s).replace(/-/g, '.')).join(' – ')
+    : String(c.end || '').replace(/-/g, '.');
+  return {
+    title: b.title || identity || label(variant, '学术兼职', 'Academic service'),
+    meta: [b.title ? identity : '', dates].filter(Boolean).join(' ｜ '),
+    desc: c.desc || '',
   };
 }
 function variantProfile(profile, variant) {
@@ -313,6 +337,13 @@ function renderSectionHtml(section, items, variant) {
       for (const line of works) out.push(bulletLi(line));
       out.push('</ul>');
     }
+  } else if (kind === 'academic_services') {
+    for (const b of items) {
+      const entry = academicServiceParts(b, variant);
+      out.push(`<h3>${esc(entry.title)}</h3>`);
+      if (entry.meta) out.push(`<p class="proj-meta">${esc(entry.meta)}</p>`);
+      if (entry.desc) out.push(`<p>${esc(entry.desc)}</p>`);
+    }
   } else if (kind === 'awards') {
     for (const b of items) {
       const entry = awardParts(b, variant);
@@ -365,10 +396,9 @@ function renderSectionHtml(section, items, variant) {
       counter += 1;
       const c = b.content;
       if (kind === 'publications') {
-        const cite = [c.journal, c.date, c.volume].filter(Boolean).map(esc).join(', ');
-        const detail = [cite, c.note, c.desc].filter(Boolean).map(esc).join(isEnglish(variant) ? '. ' : '。');
+        const detail = paperDetail(c, variant);
         const ending = /[.!?。！？]$/.test(detail) ? '' : (isEnglish(variant) ? '.' : '。');
-        out.push(`<li><b>${esc(b.title)}</b>${detail ? (isEnglish(variant) ? '. ' : '。') + detail : ''}${ending}</li>`);
+        out.push(`<li><b>${esc(b.title)}</b>${detail ? (isEnglish(variant) ? '. ' : '。') + esc(detail) : ''}${ending}</li>`);
       } else {
         out.push(`<li><b>${esc(b.title)}</b>${isEnglish(variant) ? ', ' : '，'}${esc(c.status || '')}${isEnglish(variant) ? '.' : '。'}</li>`);
       }
@@ -505,6 +535,13 @@ function renderMarkdown(profile, blocks, variant) {
         const works = Array.isArray(c.works) ? c.works : (Array.isArray(c.bullets) ? c.bullets : []);
         for (const line of works) block.push(bulletMd(line));
       }
+    } else if (kind === 'academic_services') {
+      for (const b of items) {
+        const entry = academicServiceParts(b, variant);
+        block.push(`### ${entry.title}`);
+        if (entry.meta) block.push(entry.meta);
+        if (entry.desc) block.push(entry.desc);
+      }
     } else if (kind === 'awards') {
       for (const b of items) {
         const entry = awardParts(b, variant);
@@ -550,8 +587,7 @@ function renderMarkdown(profile, blocks, variant) {
         counter += 1;
         const c = b.content;
         if (kind === 'publications') {
-          const cite = [c.journal, c.date, c.volume].filter(Boolean).join(', ');
-          const detail = [cite, c.note, c.desc].filter(Boolean).join(isEnglish(variant) ? '. ' : '。');
+          const detail = paperDetail(c, variant);
           const ending = /[.!?。！？]$/.test(detail) ? '' : (isEnglish(variant) ? '.' : '。');
           block.push(`${counter}. **${b.title || ''}**${detail ? (isEnglish(variant) ? '. ' : '。') + detail : ''}${ending}`);
         } else {

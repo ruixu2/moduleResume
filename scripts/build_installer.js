@@ -144,6 +144,7 @@ async function main() {
     /* 只打包运行所需的应用代码；data/（真实个人信息）、scripts/、legacy-python/ 均排除 */
     files: [
       'package.json',
+      'LICENSE',
       'backend/**/*',
       'frontend/**/*',
       'desktop/main.js',

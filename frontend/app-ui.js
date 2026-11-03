@@ -261,8 +261,9 @@ const OV_FIELDS = {
   thesis:    [{ k: 'degreeType', l: '学位类型' }, { k: 'major', l: '专业名称' }, { k: 'school', l: '学校' }, { k: 'college', l: '学院' }, { k: 'dates', l: '完成/答辩时间' }, { k: 'advisor', l: '导师' }, { k: 'brief', l: '论文简要内容', big: true }, { k: 'works', l: '主要工作（每行一条）', big: true, list: true }],
   project:   [{ k: 'source', l: '项目来源' }, { k: 'projType', l: '项目类型' }, { k: 'funding', l: '经费/编号' }, { k: 'work', l: '项目工作' }, { k: 'works', l: '主要工作（每行一条）', big: true, list: true }],
   internship: [{ k: 'company', l: '公司 / 单位' }, { k: 'position', l: '实习岗位' }, { k: 'department', l: '部门' }, { k: 'location', l: '工作地点' }, { k: 'start', l: '起始（年月）', month: true }, { k: 'end', l: '结束（年月，可空=至今）', month: true }, { k: 'works', l: '实习工作与成果（每行一条）', big: true, list: true }],
+  academic_service: [{ k: 'organization', l: '机构 / 期刊 / 学术组织' }, { k: 'position', l: '职务 / 角色' }, { k: 'start', l: '起始（年月）', month: true }, { k: 'end', l: '结束（年月，可空=至今）', month: true }, { k: 'desc', l: '职责与成果', big: true }],
   award:     [{ k: 'level', l: '获奖级别' }, { k: 'rank', l: '奖项等级' }, { k: 'date', l: '获奖时间' }, { k: 'organization', l: '颁奖单位' }, { k: 'recipient', l: '获奖身份 / 排名' }, { k: 'desc', l: '获奖说明 / 个人贡献', big: true }],
-  paper:     [{ k: 'journal', l: '期刊名称' }, { k: 'date', l: '发表时间' }, { k: 'volume', l: '卷期页码' }, { k: 'note', l: '作者位次备注' }, { k: 'desc', l: '简介', big: true }],
+  paper:     [{ k: 'journal', l: '期刊名称' }, { k: 'partition', l: '分区' }, { k: 'impactFactor', l: '影响因子' }, { k: 'date', l: '发表时间' }, { k: 'volume', l: '卷期页码' }, { k: 'note', l: '作者位次备注' }, { k: 'desc', l: '简介', big: true }],
   unpublished_paper: [{ k: 'authors', l: '作者' }, { k: 'status', l: '稿件状态' }, { k: 'targetJournal', l: '拟投 / 投稿期刊' }, { k: 'note', l: '作者贡献或备注' }, { k: 'desc', l: '研究简介', big: true }],
   patent:    [{ k: 'status', l: '状态' }],
   custom:    [{ k: 'lines', l: '内容行（每行一条）', big: true, list: true }],
@@ -284,7 +285,7 @@ function openOverrideEditor(si, ii) {
   if (!b) { toast('素材块已被删除，无法定制'); return; }
   it.ov = it.ov || {};
   const fields = OV_FIELDS[b.type] || [{ k: 'text', l: '内容', big: true }];
-  const hasTitle = ['project', 'internship', 'award', 'paper', 'unpublished_paper', 'patent', 'custom', 'thesis'].indexOf(b.type) >= 0;
+  const hasTitle = ['project', 'internship', 'academic_service', 'award', 'paper', 'unpublished_paper', 'patent', 'custom', 'thesis'].indexOf(b.type) >= 0;
   const hasGroup = ['paper', 'unpublished_paper', 'patent'].indexOf(b.type) >= 0;
 
   let html = '<h3>版本级定制 · ' + esc((TYPES[b.type] || {}).label || b.type) + '</h3>' +
@@ -328,7 +329,7 @@ function openOverrideEditor(si, ii) {
         if (JSON.stringify(arr) !== JSON.stringify(o)) content[f.k] = arr;
       } else {
         const v = el.value.trim();
-        const allowEmpty = b.type === 'internship' && f.k === 'end';
+        const allowEmpty = ['internship', 'academic_service'].includes(b.type) && f.k === 'end';
         if ((v !== '' || allowEmpty) && v !== String(orig == null ? '' : orig)) content[f.k] = v;
       }
     }

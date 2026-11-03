@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "description": "moduleResume · 模块化简历工作台（Node.js 本地服务 + 浏览器界面，可打包 EXE）",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "main": "desktop/main.js",
   "bin": "run.js",
   "scripts": {

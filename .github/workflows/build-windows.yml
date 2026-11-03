@@ -47,7 +47,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: moduleResume-browser-windows-x64
-          path: dist/moduleResume.exe
+          path: |
+            dist/moduleResume.exe
+            dist/LICENSE
           if-no-files-found: error
           retention-days: 30
 
@@ -58,7 +60,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: moduleResume-installer-windows-x64
-          path: dist-installer/moduleResume-Setup-*.exe
+          path: |
+            dist-installer/moduleResume-Setup-*.exe
+            LICENSE
           if-no-files-found: error
           retention-days: 30
 
@@ -75,5 +79,5 @@ jobs:
           }
           $options = @('--verify-tag', '--generate-notes')
           if ($version -match '-') { $options += '--prerelease' }
-          gh release create $env:GITHUB_REF_NAME 'dist/moduleResume.exe' $installer @options
+          gh release create $env:GITHUB_REF_NAME 'dist/moduleResume.exe' $installer 'LICENSE' @options
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -13,6 +13,7 @@ const TYPES = {
   skill:     { label: '技能',     color: 't-skill' },
   project:   { label: '项目',     color: 't-project' },
   internship: { label: '实习经历', color: 't-internship' },
+  academic_service: { label: '学术兼职', color: 't-academic-service' },
   award:     { label: '获奖经历', color: 't-award' },
   paper:     { label: '期刊论文', color: 't-paper' },
   unpublished_paper: { label: '未发表论文', color: 't-unpublished-paper' },
@@ -28,6 +29,7 @@ const KINDS = {
   bullets:      { label: '要点列表',   types: ['skill', 'custom'] },
   projects:     { label: '项目详情',   types: ['project'] },
   internships:  { label: '实习经历',   types: ['internship'] },
+  academic_services: { label: '学术兼职', types: ['academic_service'] },
   awards:       { label: '获奖经历',   types: ['award'] },
   publications: { label: '期刊论文列表', types: ['paper'] },
   unpublished:  { label: '未发表论文列表', types: ['unpublished_paper'] },
@@ -169,8 +171,8 @@ function blockTitle(b) {
     const line = [d.type, d.major].filter(Boolean).join(' · ');
     if (line.trim()) return line.slice(0, 50);
   }
-  if (b.type === 'internship') {
-    const line = [c.company, c.position].filter(Boolean).join(' · ');
+  if (b.type === 'internship' || b.type === 'academic_service') {
+    const line = [b.type === 'internship' ? c.company : c.organization, c.position].filter(Boolean).join(' · ');
     if (line) return line;
   }
   const fallback = c.text || (c.lines && c.lines[0]) || (c.bullets && c.bullets[0]) || c.status || '（未命名素材块）';
@@ -180,6 +182,9 @@ function blockSub(b) {
   const c = b.content || {};
   if (b.type === 'award') {
     return [c.level, c.rank, c.date, c.organization, c.recipient, c.desc].filter(Boolean).join('　').slice(0, 100);
+  }
+  if (b.type === 'academic_service') {
+    return [c.organization, c.position, eduDateLine(c), c.desc].filter(Boolean).join('　').slice(0, 100);
   }
   if (b.type === 'internship') {
     return [eduDateLine(c), c.company, c.position, c.department, c.location, (c.works || [])[0]].filter(Boolean).join('　').slice(0, 100);
@@ -191,7 +196,8 @@ function blockSub(b) {
     return String(first).slice(0, 60);
   }
   if (b.type === 'paper') {
-    const line = [c.journal, c.date].filter(Boolean).join('　');
+    const metrics = [c.partition, c.impactFactor ? 'IF: ' + c.impactFactor : ''].filter(Boolean).join('，');
+    const line = [c.journal, c.date, metrics ? '（' + metrics + '）' : ''].filter(Boolean).join('　');
     return line || String(c.desc || '').slice(0, 70);
   }
   if (b.type === 'unpublished_paper') {
@@ -422,6 +428,7 @@ function defaultSections() {
     { id: uid('sec'), title: '个人总结', kind: 'paragraph', items: [] },
     { id: uid('sec'), title: '核心技能', kind: 'bullets', items: [] },
     { id: uid('sec'), title: '实习经历', kind: 'internships', items: [] },
+    { id: uid('sec'), title: '学术兼职', kind: 'academic_services', items: [] },
     { id: uid('sec'), title: '获奖经历', kind: 'awards', items: [] },
     { id: uid('sec'), title: '科研项目经历', kind: 'projects', items: [] },
     { id: uid('sec'), title: '论文成果', kind: 'publications', items: [] },
@@ -531,7 +538,7 @@ function renderBlocks() {
   const groups = [];
   for (const t of order) {
     const items = list.filter(b => b.type === t);
-    if (items.length || (['unpublished_paper', 'internship', 'award'].includes(t) && (!tf || tf === t) && !q)) groups.push({ type: t, items: items });
+    if (items.length || (['unpublished_paper', 'internship', 'academic_service', 'award'].includes(t) && (!tf || tf === t) && !q)) groups.push({ type: t, items: items });
   }
   const known = new Set(order);
   const others = list.filter(b => !known.has(b.type));
@@ -655,6 +662,15 @@ function openBlockModal(id, presetType) {
         '<label style="margin-bottom:4px">实习工作与成果（可自定义增删，每项一条）</label>' +
         '<div id="fWorks"></div>' +
         '<button class="btn tiny" id="fWorksAdd" type="button" style="margin:2px 0 12px">+ 添加一项工作 / 成果</button>';
+    } else if (t === 'academic_service') {
+      html += '<label>兼职标题（可空，默认显示机构与职务）<input id="fTitle" value="' + esc(cur ? cur.title : '') + '"></label>' +
+        '<div class="grid2">' +
+        '<label>机构 / 期刊 / 学术组织<input id="fOrganization" value="' + esc(c.organization || '') + '" placeholder="如：某学术期刊 / 学会"></label>' +
+        '<label>职务 / 角色<input id="fPosition" value="' + esc(c.position || '') + '" placeholder="如：审稿人 / 编委 / 委员"></label></div>' +
+        '<div class="grid2">' +
+        '<label>起始时间（年月，可空）<input type="month" id="fStart" value="' + esc(c.start || '') + '"></label>' +
+        '<label>结束时间（年月；留空 = 至今）<input type="month" id="fEnd" value="' + esc(c.end || '') + '"></label></div>' +
+        '<label>职责与成果（可空）<textarea id="fDesc" rows="3">' + esc(c.desc || '') + '</textarea></label>';
     } else if (t === 'award') {
       html += '<label>奖项名称<input id="fTitle" value="' + esc(cur ? cur.title : '') + '" placeholder="如：全国大学生数学建模竞赛"></label>' +
         '<div class="grid2">' +
@@ -673,6 +689,9 @@ function openBlockModal(id, presetType) {
         '<div class="grid2">' +
         '<label>期刊名称（可空）<input id="fJournal" value="' + esc(c.journal || '') + '"></label>' +
         '<label>发表时间（可空，如：2024.06）<input id="fDate" value="' + esc(c.date || '') + '"></label></div>' +
+        '<div class="grid2">' +
+        '<label>分区（可空）<input id="fPartition" value="' + esc(c.partition || '') + '" placeholder="如：中科院 1 区 / JCR Q1"></label>' +
+        '<label>影响因子（可空）<input id="fImpactFactor" value="' + esc(c.impactFactor || '') + '" placeholder="如：5.2（2024）"></label></div>' +
         '<label>卷期页码（可空，如：41(6): 1234-1245）<input id="fVolume" value="' + esc(c.volume || '') + '"></label>' +
         '<label>简介<textarea id="fDesc" rows="2">' + esc(c.desc || '') + '</textarea></label>';
     } else if (t === 'unpublished_paper') {
@@ -741,8 +760,9 @@ function openBlockModal(id, presetType) {
     else if (bt === 'skill') { content.text = get('#fText').trim(); title = (content.text.split('：')[0] || '').slice(0, 20); }
     else if (bt === 'project') { title = get('#fTitle').trim(); content.source = get('#fSource').trim(); content.projType = get('#fProjType').trim(); content.funding = get('#fFunding').trim(); content.work = get('#fWork').trim(); content.works = $$('#fWorks textarea').map(el => el.value.trim()).filter(Boolean); }
     else if (bt === 'internship') { title = get('#fTitle').trim(); content.company = get('#fCompany').trim(); content.position = get('#fPosition').trim(); content.department = get('#fDepartment').trim(); content.location = get('#fLocation').trim(); content.start = get('#fStart').trim(); content.end = get('#fEnd').trim(); content.works = $$('#fWorks textarea').map(el => el.value.trim()).filter(Boolean); }
+    else if (bt === 'academic_service') { title = get('#fTitle').trim(); content.organization = get('#fOrganization').trim(); content.position = get('#fPosition').trim(); content.start = get('#fStart').trim(); content.end = get('#fEnd').trim(); content.desc = get('#fDesc').trim(); }
     else if (bt === 'award') { title = get('#fTitle').trim(); content.level = get('#fLevel').trim(); content.rank = get('#fRank').trim(); content.date = get('#fDate').trim(); content.organization = get('#fOrganization').trim(); content.recipient = get('#fRecipient').trim(); content.desc = get('#fDesc').trim(); }
-    else if (bt === 'paper') { title = get('#fTitle').trim(); group = get('#fGroup').trim(); content.note = get('#fNote').trim(); content.journal = get('#fJournal').trim(); content.date = get('#fDate').trim(); content.volume = get('#fVolume').trim(); content.desc = get('#fDesc'); }
+    else if (bt === 'paper') { title = get('#fTitle').trim(); group = get('#fGroup').trim(); content.note = get('#fNote').trim(); content.journal = get('#fJournal').trim(); content.partition = get('#fPartition').trim(); content.impactFactor = get('#fImpactFactor').trim(); content.date = get('#fDate').trim(); content.volume = get('#fVolume').trim(); content.desc = get('#fDesc'); }
     else if (bt === 'unpublished_paper') { title = get('#fTitle').trim(); group = get('#fGroup').trim(); content.authors = get('#fAuthors').trim(); content.status = get('#fStatus').trim(); content.targetJournal = get('#fTargetJournal').trim(); content.note = get('#fNote').trim(); content.desc = get('#fDesc'); }
     else if (bt === 'patent') { title = get('#fTitle').trim(); group = get('#fGroup').trim(); content.status = get('#fStatus').trim(); }
     else { title = get('#fTitle').trim(); content.lines = get('#fRows').split('\n').map(s => s.trim()).filter(Boolean); }
