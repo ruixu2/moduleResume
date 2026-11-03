@@ -56,11 +56,11 @@ node scripts/build_installer.js   # 产物：dist-installer\moduleResume-Setup-<
 
 推送到 `main` 分支时，GitHub Actions 会自动构建 Windows x64 网页版单文件 EXE 和桌面安装包；也可以在仓库的 **Actions → Build Windows EXE → Run workflow** 手动启动。构建成功后，在对应运行记录的 **Artifacts** 中下载 `moduleResume-browser-windows-x64` 或 `moduleResume-installer-windows-x64`，产物保留 30 天。安装包未经代码签名。
 
-推送版本标签时还会自动创建 GitHub Release，将两个 EXE 作为附件发布，并自动生成更新说明。标签必须与 `package.json` 的版本一致；例如当前版本为 `0.2.0` 时：
+推送版本标签时还会自动创建 GitHub Release，将两个 EXE 作为附件发布，并自动生成更新说明。标签必须与 `package.json` 的版本一致；例如版本为 `0.2.1` 时：
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
 带预发布标识的版本（例如 `0.3.0-beta.1`）会标记为预发布。普通分支推送和手动构建不会创建 Release；同名 Release 已存在时发布步骤会失败，不会覆盖已有附件。
