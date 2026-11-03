@@ -50,6 +50,15 @@ node scripts/build_installer.js   # 产物：dist-installer\moduleResume-Setup-<
 
 推送到 `main` 分支时，GitHub Actions 会自动构建 Windows x64 网页版单文件 EXE 和桌面安装包；也可以在仓库的 **Actions → Build Windows EXE → Run workflow** 手动启动。构建成功后，在对应运行记录的 **Artifacts** 中下载 `moduleResume-browser-windows-x64` 或 `moduleResume-installer-windows-x64`，产物保留 30 天。安装包未经代码签名。
 
+推送版本标签时还会自动创建 GitHub Release，将两个 EXE 作为附件发布，并自动生成更新说明。标签必须与 `package.json` 的版本一致；例如当前版本为 `0.2.0` 时：
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+带预发布标识的版本（例如 `0.3.0-beta.1`）会标记为预发布。普通分支推送和手动构建不会创建 Release；同名 Release 已存在时发布步骤会失败，不会覆盖已有附件。
+
 ## 核心概念
 
 | 概念 | 说明 |
@@ -112,7 +121,7 @@ moduleResume/
 - 在“素材块库 → 实习经历 → + 新增”录入实习素材。新建简历版本自带空的“实习经历”板块；已有版本可通过“添加板块”选择“实习经历”，再从块库添加素材。标题留空时自动显示公司与岗位。
 - 在“素材块库 → 获奖经历 → + 新增”录入竞赛奖项、奖学金或荣誉。新建简历版本自带空的“获奖经历”板块；已有版本可通过“添加板块”选择“获奖经历”，再从块库添加素材。
 - 文本 JSON 便于备份、对比和版本管理（可直接放进 git / 网盘）
-- 也可用界面右上角「导出数据 / 导入数据」整体备份恢复
+- 界面右上角「导出数据 / 导入数据」仅处理当前项目的 JSON 数据，不包含其他项目或照片、个人材料文件，不能作为完整备份；完整备份请另行复制整个 `data/` 目录。
 
 ## API 速览（本地 http://127.0.0.1:8787）
 
@@ -136,12 +145,6 @@ moduleResume/
 | GET | `/api/export/{variantId}.pdf` | **直接导出 PDF**（无头浏览器生成，无打印对话框） |
 | GET | `/api/export/snap/{snapshotId}.md|.html` | 从快照导出 |
 
-## Roadmap
+## 开发计划
 
-- [x] v0.1 素材块库 + 版本组装 + 投递管理 + Markdown/打印 PDF 导出 + EXE 打包
-- [x] 版本级素材覆盖的可视化编辑（ov 字段 UI：素材条「定制」）
-- [x] 版本快照（投递时冻结，保证"发出去的那版"可复现）
-- [x] 排版主题切换（藏青学术 / 现代简约，版本级选择）
-- [ ] 块级措辞变体（同一素材多写法，按岗位选用）
-- [ ] Typst 高保真 PDF（可选链路）
-- [ ] AI 辅助：按 JD 推荐素材块 / 生成改写建议（BYO-Key 或 Agent 模式）
+已开发功能、待开发事项、优先级和验收标准以 [开发计划与进度](DEVELOPMENT_PLAN.md) 为准。
