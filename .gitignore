@@ -8,3 +8,6 @@ __pycache__/
 data/
 /AGENTS.md
 /DEVELOPMENT_PLAN.md
+/moduleResume.exe
+/scripts/create_*_cv.js
+/scripts/export_*_cv.js
