@@ -465,7 +465,7 @@ function openCreateVersion() {
     '<h3>新建定制版本</h3>' +
     '<label>版本名<input id="nvName" placeholder="如：示例版本"></label>' +
     '<label>公司<input id="nvCompany" placeholder="如：示例科技公司"></label>' +
-    '<label>岗位<input id="nvPosition" placeholder="如：算法研发 / 临床科研合作（医学影像方向）"></label>' +
+    '<label>岗位<input id="nvPosition" placeholder="如：软件工程师"></label>' +
     '<label>求职意向（显示在简历头部；留空则使用岗位名）<input id="nvIntent"></label>' +
     '<div class="modal-actions"><button class="btn" data-close>取消</button><button class="btn primary" id="nvOk">创建并打开</button></div>'
   );
@@ -601,8 +601,8 @@ function openBlockModal(id, presetType) {
         '<label>学历/学位（如：博士（硕博连读）、本科）<input id="fDegreeType" value="' + esc(e.degreeType) + '"></label>' +
         '<label>学校（如：示例大学）<input id="fSchool" value="' + esc(e.school) + '"></label></div>' +
         '<div class="grid2">' +
-        '<label>学院（可空，如：智能工程学院）<input id="fCollege" value="' + esc(e.college) + '"></label>' +
-        '<label>专业（方向）（如：计算机科学与技术（智能交通工程））<input id="fMajor" value="' + esc(e.major) + '"></label></div>' +
+        '<label>学院（可空，如：示例学院）<input id="fCollege" value="' + esc(e.college) + '"></label>' +
+        '<label>专业（方向）（如：计算机科学与技术）<input id="fMajor" value="' + esc(e.major) + '"></label></div>' +
         '<label>导师（旧版简写，可空；如需完整信息请使用“研究生导师”素材块）<input id="fAdvisor" value="' + esc(c.advisor || '') + '"></label>';
     } else if (t === 'advisor') {
       html += '<div class="grid2">' +
@@ -630,7 +630,7 @@ function openBlockModal(id, presetType) {
         '<label>完成/答辩时间<input id="fDates" value="' + esc(c.dates || '') + '"></label>' +
         '<label>学校（如：示例大学）<input id="fSchool" value="' + esc(e.school) + '"></label></div>' +
         '<div class="grid2">' +
-        '<label>学院（可空，如：智能工程学院）<input id="fCollege" value="' + esc(e.college) + '"></label>' +
+        '<label>学院（可空，如：示例学院）<input id="fCollege" value="' + esc(e.college) + '"></label>' +
         '<label>导师<input id="fAdvisor" value="' + esc(c.advisor || '') + '"></label></div>' +
         '<label>论文简要内容（一两句话概括研究内容，可空）<textarea id="fBrief" rows="3">' + esc(c.brief || c.desc || '') + '</textarea></label>' +
         '<label style="margin-bottom:4px">主要工作（可自定义增删，每项一条）</label>' +
