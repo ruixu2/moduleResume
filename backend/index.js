@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { URL } = require('node:url');
 const { spawn } = require('node:child_process');
+const { version: appVersion } = require('../package.json');
 
 const { RESOURCE_ROOT, IS_PKG, dataDir } = require('./paths');
 const storage = require('./storage');
@@ -224,7 +225,7 @@ const server = http.createServer(async (req, res) => {
     /* --- API --- */
     if (p === '/api/health') {
       return sendJson(res, {
-        ok: true, app: 'moduleResume', version: '0.2.0',
+        ok: true, app: 'moduleResume', version: appVersion,
         runtime: 'node ' + process.version, packaged: IS_PKG, data_dir: dataDir(),
       });
     }

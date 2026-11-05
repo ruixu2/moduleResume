@@ -9,7 +9,7 @@
 <body>
 
 <header class="topbar">
-  <div class="brand">🧩 moduleResume</div>
+  <div class="brand">🧩 moduleResume <span id="appVersion" class="app-version"></span></div>
   <div class="project-bar">
     <select id="projectSel" class="proj-sel" title="切换个人项目"></select>
     <button id="projectNew" class="btn ghost" title="新建个人项目">＋ 新建个人项目</button>
@@ -48,6 +48,11 @@
       <span class="muted">每个公司/岗位一个版本：从素材块库挑选组合，实时预览</span>
       <button id="addVerBtn" class="btn primary">+ 新建定制版本</button>
     </div>
+    <div class="filter-bar">
+      <label for="versionCategoryFilter" class="filter-label">分类</label>
+      <select id="versionCategoryFilter" class="inp" aria-label="筛选简历分类"></select>
+    </div>
+    <datalist id="versionCategorySuggestions"></datalist>
     <div id="verList" class="ver-list"></div>
   </section>
 
@@ -118,6 +123,9 @@
     <div class="editor-layout">
       <div class="editor-left">
         <div class="card">
+          <label>版本分类（仅用于整理，不显示在简历中）
+            <input id="edCategory" class="inp" list="versionCategorySuggestions" placeholder="如：企业求职；留空为未分类" maxlength="40" style="width:100%">
+          </label>
           <label>求职意向（显示在简历头部）
             <input id="edIntent" class="inp" style="width:100%">
           </label>

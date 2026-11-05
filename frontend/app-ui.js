@@ -123,6 +123,8 @@ function openEditor(id) {
   $('#edName').value = editingVariant.name || '';
   $('#edCompany').value = editingVariant.company || '';
   $('#edPosition').value = editingVariant.position || '';
+  updateVersionCategorySuggestions();
+  $('#edCategory').value = versionCategory(editingVariant);
   $('#edIntent').value = editingVariant.intent || '';
   $('#edSummaryOverride').value = editingVariant.summaryOverride || '';
   const themeSel = $('#edTheme');
@@ -143,6 +145,7 @@ async function saveEditor(silent) {
   editingVariant.name = $('#edName').value.trim() || editingVariant.name;
   editingVariant.company = $('#edCompany').value.trim();
   editingVariant.position = $('#edPosition').value.trim();
+  editingVariant.category = $('#edCategory').value.trim();
   editingVariant.intent = $('#edIntent').value.trim();
   editingVariant.summaryOverride = $('#edSummaryOverride').value;
   editingVariant.themeId = ($('#edTheme') && $('#edTheme').value) || editingVariant.themeId || 'theme-navy';
@@ -632,7 +635,7 @@ function bindEditorBar() {
     await saveEditor(true);
     openSnapshotList(editingVariant.id);
   };
-  ['#edName', '#edCompany', '#edPosition', '#edIntent', '#edSummaryOverride'].forEach(sel => {
+  ['#edName', '#edCompany', '#edPosition', '#edCategory', '#edIntent', '#edSummaryOverride'].forEach(sel => {
     $(sel).addEventListener('input', autosaveEditor);
   });
   $('#addSectionBtn').onclick = openAddSectionModal;
@@ -813,16 +816,19 @@ function bindEvents() {
 
   // 简历版本
   $('#addVerBtn').onclick = openCreateVersion;
+  $('#versionCategoryFilter').onchange = renderVersions;
   $('#verList').addEventListener('click', e => {
     const open = e.target.closest('[data-openver]');
     const snap = e.target.closest('[data-snapver]');
     const dup = e.target.closest('[data-dupver]');
+    const category = e.target.closest('[data-categoryver]');
     const del = e.target.closest('[data-delver]');
     const md = e.target.closest('[data-mdver]');
     const pdfv = e.target.closest('[data-pdfver]');
     if (open) { openEditor(open.dataset.openver); return; }
     if (snap) { openSnapshotList(snap.dataset.snapver); return; }
     if (dup) { duplicateVersion(dup.dataset.dupver); return; }
+    if (category) { openVersionCategory(category.dataset.categoryver); return; }
     if (del) { deleteVersion(del.dataset.delver); return; }
     if (md) { location.href = '/api/export/' + md.dataset.mdver + '.md'; return; }
     if (pdfv) { exportPdfFile('/api/export/' + pdfv.dataset.pdfver + '.pdf'); return; }
@@ -943,6 +949,10 @@ window.addEventListener('resize', debounce(() => {
 }, 400));
 
 async function init() {
+  try {
+    const health = await api.get('/api/health');
+    if (health.version) $('#appVersion').textContent = 'v' + health.version;
+  } catch (e) { /* 版本信息不可用时不影响主界面 */ }
   try {
     await loadAll();
   } catch (err) {

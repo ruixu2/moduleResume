@@ -26,15 +26,15 @@ body {
 /* ---------- 顶栏 ---------- */
 .topbar {
   position: sticky; top: 0; z-index: 50;
-  display: flex; align-items: center; gap: 18px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px;
   background: var(--navy); color: #fff; padding: 10px 22px;
   box-shadow: 0 2px 8px rgba(15,25,55,.28);
 }
 .brand { font-size: 17px; font-weight: 700; letter-spacing: .5px; white-space: nowrap; }
-.tabs { display: flex; gap: 6px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .tab {
   background: transparent; color: #cdd6ea; border: 1px solid transparent;
-  border-radius: 6px; padding: 6px 14px; font-size: 14px; cursor: pointer;
+  border-radius: 6px; padding: 6px 14px; font-size: 14px; cursor: pointer; white-space: nowrap;
 }
 .tab:hover { color: #fff; background: rgba(255,255,255,.10); }
 .tab.active { background: #fff; color: var(--navy); font-weight: 700; }
@@ -78,6 +78,8 @@ main { max-width: 1420px; margin: 0 auto; padding: 22px; }
 .view-head .btn.primary { margin-left: auto; }
 
 .filter-bar { display: flex; gap: 10px; margin-bottom: 14px; }
+.filter-label { display: flex; align-items: center; color: var(--muted); }
+.app-version { margin-left: 3px; font-size: 11px; font-weight: 400; opacity: .8; }
 
 /* ---------- 投递管理 ---------- */
 .app-list { display: flex; flex-direction: column; gap: 10px; }

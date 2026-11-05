@@ -437,22 +437,51 @@ function defaultSections() {
   ];
 }
 
+function versionCategory(v) {
+  return typeof v.category === 'string' ? v.category.trim() : '';
+}
+
+function versionCategories() {
+  return Array.from(new Set(DB.variants.map(versionCategory).filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, 'zh-CN'));
+}
+
+function updateVersionCategorySuggestions() {
+  $('#versionCategorySuggestions').innerHTML = versionCategories()
+    .map(c => '<option value="' + esc(c) + '"></option>').join('');
+}
+
 function renderVersions() {
   const el = $('#verList');
+  const filter = $('#versionCategoryFilter');
+  const selected = filter.value || 'all';
+  const categories = versionCategories();
+  filter.innerHTML = '<option value="all">全部分类</option><option value="uncategorized">未分类</option>' +
+    categories.map(c => '<option value="' + esc('category:' + c) + '">' + esc(c) + '</option>').join('');
+  filter.value = Array.from(filter.options).some(o => o.value === selected) ? selected : 'all';
+  updateVersionCategorySuggestions();
   if (!DB.variants.length) {
     el.innerHTML = '<div class="empty">还没有简历版本。点「+ 新建定制版本」，然后从素材块库挑选素材组装。</div>';
     return;
   }
-  el.innerHTML = DB.variants.map(v => {
+  const shown = DB.variants.filter(v => filter.value === 'all' ||
+    (filter.value === 'uncategorized' ? !versionCategory(v) : 'category:' + versionCategory(v) === filter.value));
+  if (!shown.length) {
+    el.innerHTML = '<div class="empty">此分类下暂无简历版本。</div>';
+    return;
+  }
+  el.innerHTML = shown.map(v => {
     const snaps = snapshotsOf(v.id);
     return '<div class="ver-card" data-id="' + esc(v.id) + '">' +
       '<div class="ver-name">' + esc(v.name) + '</div>' +
       '<div class="ver-sub">' + esc(v.company || '（未填公司）') + ' · ' + esc(v.position || '（未填岗位）') + '</div>' +
+      '<div class="ver-sub">分类：' + esc(versionCategory(v) || '未分类') + '</div>' +
       '<div class="ver-sub">素材 ' + v.sections.reduce((n, s) => n + s.items.length, 0) + ' 块 ｜ 更新：' + esc(v.updated || v.created || '') + '</div>' +
       '<div class="ver-actions">' +
       '<button class="btn small primary" data-openver="' + esc(v.id) + '">打开编辑</button>' +
       '<button class="btn small" data-snapver="' + esc(v.id) + '">📌 快照' + (snaps.length ? ' (' + snaps.length + ')' : '') + '</button>' +
       '<button class="btn small" data-dupver="' + esc(v.id) + '">复制</button>' +
+      '<button class="btn small" data-categoryver="' + esc(v.id) + '">设置分类</button>' +
       '<button class="btn small" data-mdver="' + esc(v.id) + '">导出MD</button>' +
       '<button class="btn small" data-pdfver="' + esc(v.id) + '">PDF</button>' +
       '<button class="btn small danger" data-delver="' + esc(v.id) + '">删除</button>' +
@@ -461,11 +490,13 @@ function renderVersions() {
 }
 
 function openCreateVersion() {
+  updateVersionCategorySuggestions();
   modal(
     '<h3>新建定制版本</h3>' +
     '<label>版本名<input id="nvName" placeholder="如：示例版本"></label>' +
     '<label>公司<input id="nvCompany" placeholder="如：示例科技公司"></label>' +
     '<label>岗位<input id="nvPosition" placeholder="如：软件工程师"></label>' +
+    '<label>版本分类<input id="nvCategory" list="versionCategorySuggestions" maxlength="40" placeholder="可输入新分类，留空为未分类"></label>' +
     '<label>求职意向（显示在简历头部；留空则使用岗位名）<input id="nvIntent"></label>' +
     '<div class="modal-actions"><button class="btn" data-close>取消</button><button class="btn primary" id="nvOk">创建并打开</button></div>'
   );
@@ -475,7 +506,7 @@ function openCreateVersion() {
     const v = {
       id: uid('var'),
       name: $('#nvName').value.trim() || ((company || '新') + '版'),
-      company: company, position: position,
+      company: company, position: position, category: $('#nvCategory').value.trim(),
       intent: $('#nvIntent').value.trim() || position,
       summaryOverride: '', created: today(), updated: today(),
       sections: defaultSections(),
@@ -483,6 +514,24 @@ function openCreateVersion() {
     DB.variants.unshift(v);
     await saveVariants(); closeModal(); renderVersions();
     openEditor(v.id);
+  };
+}
+
+function openVersionCategory(id) {
+  const v = DB.variants.find(x => x.id === id); if (!v) return;
+  updateVersionCategorySuggestions();
+  modal('<h3>设置版本分类</h3>' +
+    '<label>分类<input id="versionCategoryInput" list="versionCategorySuggestions" maxlength="40" value="' + esc(versionCategory(v)) + '" placeholder="输入或选择分类；留空为未分类"></label>' +
+    '<div class="modal-actions"><button class="btn" data-close>取消</button><button class="btn primary" id="versionCategorySave">保存</button></div>', true);
+  $('#versionCategorySave').onclick = async () => {
+    const previous = v.category;
+    v.category = $('#versionCategoryInput').value.trim();
+    try {
+      await saveVariants(); closeModal(); renderVersions(); toast('分类已保存');
+    } catch (e) {
+      if (previous === undefined) delete v.category; else v.category = previous;
+      toast('保存分类失败：' + e.message);
+    }
   };
 }
 
