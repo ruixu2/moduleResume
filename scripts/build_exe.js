@@ -35,6 +35,8 @@ function main() {
     console.log('已检测到 @yao-pkg/pkg，跳过安装');
   }
 
+  require('./prepare_import_assets')();
+
   // 2. 清理旧产物
   fs.rmSync(path.join(ROOT, 'dist'), { recursive: true, force: true });
   fs.rmSync(path.join(ROOT, 'build'), { recursive: true, force: true });

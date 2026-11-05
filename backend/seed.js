@@ -4,7 +4,7 @@
     首次启动后请到「基础信息 / 素材块库」替换为你自己的内容。
 
   blocks     素材块库（唯一事实来源）；type 取值：
-             summary | education | advisor | thesis | skill | project | internship | academic_service | award | paper | unpublished_paper | patent | custom
+             summary | education | advisor | thesis | skill | project | internship | course | academic_service | award | paper | unpublished_paper | patent | custom
   variants   岗位定制版本：sections[].items[] 通过 bid 引用素材块，ov 做版本级覆盖
   applications 投递记录
 */
@@ -77,19 +77,31 @@ const SEED = {
     /* ---------- 核心技能 ---------- */
     {
       id: 'blk-skill-01', type: 'skill', title: '编程与工具', tags: ['Python', '工具'], group: '',
-      content: { text: '编程与工具：Python / PyTorch / SQL；数据处理、分析与可视化。' },
+      content: {
+        text: '编程与工具：Python / PyTorch / SQL；数据处理、分析与可视化。',
+        items: ['Python：数据处理、模型训练与脚本开发', 'PyTorch：深度学习模型搭建、训练与调参', 'SQL：数据查询、清洗与统计分析'],
+      },
     },
     {
       id: 'blk-skill-02', type: 'skill', title: '建模与算法', tags: ['机器学习', '算法'], group: '',
-      content: { text: '建模与算法：机器学习与深度学习建模、时间序列分析、数值模拟。' },
+      content: {
+        text: '建模与算法：机器学习与深度学习建模、时间序列分析、数值模拟。',
+        items: ['机器学习：分类、回归、聚类及模型评估', '时间序列：趋势分析、预测与异常检测', '数值模拟：面向实际问题的建模与结果分析'],
+      },
     },
     {
       id: 'blk-skill-03', type: 'skill', title: '工程与协作', tags: ['项目', '协作'], group: '',
-      content: { text: '工程与协作：项目申报与执行、跨团队沟通协作、文档与汇报材料撰写。' },
+      content: {
+        text: '工程与协作：项目申报与执行、跨团队沟通协作、文档与汇报材料撰写。',
+        items: ['项目执行：需求梳理、计划制定与进度跟踪', '团队协作：跨部门沟通、任务协调与交付', '文档汇报：技术文档、汇报材料和成果总结'],
+      },
     },
     {
       id: 'blk-skill-04', type: 'skill', title: '语言与写作', tags: ['写作', '英语'], group: '',
-      content: { text: '语言与写作：中英文文献阅读与梳理、科技论文写作（示例）。' },
+      content: {
+        text: '语言与写作：中英文文献阅读与梳理、科技论文写作（示例）。',
+        items: ['英语：文献阅读、技术资料检索与书面表达', '写作：科技论文结构、论证与修改', '整理：资料归纳、引用管理和信息提炼'],
+      },
     },
 
     /* ---------- 科研项目 ---------- */
@@ -133,6 +145,26 @@ const SEED = {
           '数据处理：参与业务数据清洗与特征构建，形成可复用的数据处理流程（请替换）。',
           '模型验证：协助完成算法实验、效果分析与技术文档整理（请替换为实际工作和成果）。',
         ],
+      },
+    },
+
+    /* ---------- 学习课程 ---------- */
+    {
+      id: 'blk-course-01', type: 'course', title: '机器学习（示例课程）',
+      tags: ['机器学习', '研究生课程'], group: '',
+      content: {
+        organization: '示例大学', courseType: '专业必修', dates: '2023.09 – 2024.01',
+        credits: '3 学分 / 48 学时', score: '92',
+        desc: '示例课程内容：监督学习、无监督学习、模型评估与正则化；完成课程项目并提交实验报告（请替换为实际课程与收获）。',
+      },
+    },
+    {
+      id: 'blk-course-02', type: 'course', title: '最优化方法（示例课程）',
+      tags: ['最优化', '研究生课程'], group: '',
+      content: {
+        organization: '示例大学', courseType: '专业选修', dates: '2023.02 – 2023.06',
+        credits: '2 学分 / 32 学时', score: '优秀',
+        desc: '示例课程内容：凸优化、梯度方法、约束优化及数值实现；结合课程作业完成算法对比实验（请替换）。',
       },
     },
 
@@ -189,6 +221,7 @@ const SEED = {
         { id: 'sec-edu', title: '教育背景', kind: 'education', items: [{ bid: 'blk-edu-phd', ov: {}, advisorIds: ['blk-advisor-phd'] }, { bid: 'blk-edu-bs', ov: {} }] },
         { id: 'sec-summary', title: '个人总结', kind: 'paragraph', items: [{ bid: 'blk-summary-01', ov: {} }] },
         { id: 'sec-skill', title: '核心技能', kind: 'bullets', items: [{ bid: 'blk-skill-01', ov: {} }, { bid: 'blk-skill-02', ov: {} }, { bid: 'blk-skill-03', ov: {} }, { bid: 'blk-skill-04', ov: {} }] },
+        { id: 'sec-courses', title: '学习课程', kind: 'courses', items: [{ bid: 'blk-course-01', ov: {} }, { bid: 'blk-course-02', ov: {} }] },
         { id: 'sec-internships', title: '实习经历', kind: 'internships', items: [{ bid: 'blk-intern-01', ov: {} }] },
         { id: 'sec-awards', title: '获奖经历', kind: 'awards', items: [{ bid: 'blk-award-01', ov: {} }] },
         { id: 'sec-projects', title: '项目经历', kind: 'projects', items: [{ bid: 'blk-proj-01', ov: {} }, { bid: 'blk-proj-02', ov: {} }] },

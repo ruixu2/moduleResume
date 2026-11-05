@@ -1,4 +1,5 @@
 node_modules/
+/frontend/vendor/
 dist/
 dist-desktop/
 dist-installer/

@@ -23,8 +23,10 @@
     <button class="tab" data-view="profile">基础信息</button>
   </nav>
   <div class="top-actions">
+    <button id="aiResumeImport" class="btn ghost">✨ AI 提取简历</button>
     <button id="exportAll" class="btn ghost">⬇ 导出数据</button>
     <button id="importAll" class="btn ghost">⬆ 导入数据</button>
+    <button id="restartApp" class="btn ghost" title="保存当前编辑并重启软件，加载最新版本">🔄 重启软件</button>
     <input type="file" id="importFile" accept=".json,application/json" hidden>
   </div>
 </header>
@@ -68,6 +70,7 @@
         <option value="">全部类型</option>
       </select>
       <input id="blockSearch" class="inp" placeholder="搜索标题 / 标签 / 内容…" style="flex:1">
+      <button id="batchCourseBtn" class="btn" type="button" title="一次粘贴多门课程，按行创建素材块">批量添加课程</button>
     </div>
     <div id="blockList" class="block-groups"></div>
   </section>
@@ -139,6 +142,11 @@
             <label style="margin-top:8px">版本快照
               <button id="edSnap" class="btn" style="width:100%;margin-top:3px" type="button">📌 创建 / 管理</button>
             </label>
+          </div>
+          <div class="editor-photo-actions">
+            <button class="btn tiny" id="edPhotoUpload" type="button">＋ 手动加入证件照</button>
+            <span class="muted">也可在右侧简历预览的照片位置点击添加；照片用于当前版本</span>
+            <input id="edPhotoFile" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden>
           </div>
           <div id="edStylePanel" style="display:none;margin-top:10px;border-top:1px dashed #e3e7f0;padding-top:10px">
             <div class="muted" style="margin-bottom:8px">自定义样式与排版（仅当前版本生效，改动实时预览）</div>
@@ -227,7 +235,17 @@
 
 <div id="modal-root"></div>
 <div id="toast"></div>
+<div id="restartOverlay" class="restart-overlay" hidden>
+  <div class="restart-card" role="status" aria-live="polite">
+    <div class="restart-spinner"></div>
+    <h3>正在重启软件…</h3>
+    <p id="restartHint">正在保存编辑并重新启动，请稍候。</p>
+    <button id="restartReload" class="btn" type="button" hidden>重新连接</button>
+  </div>
+</div>
+<script src="/static/course-batch.js"></script>
 <script src="/static/app.js"></script>
+<script src="/static/ai-import.js"></script>
 <script src="/static/app-ui.js"></script>
 </body>
 </html>

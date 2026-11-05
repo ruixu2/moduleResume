@@ -1,13 +1,15 @@
 {
   "name": "moduleresume",
-  "version": "0.2.3",
+  "version": "0.2.7",
   "private": true,
   "description": "moduleResume · 模块化简历工作台（Node.js 本地服务 + 浏览器界面，可打包 EXE）",
   "license": "Apache-2.0",
   "main": "desktop/main.js",
   "bin": "run.js",
   "scripts": {
+    "postinstall": "node scripts/prepare_import_assets.js",
     "start": "node run.js",
+    "test": "node --test scripts/test_ai_import.js scripts/test_project_customization.js scripts/test_internships.js scripts/test_awards.js scripts/test_papers.js scripts/test_academic_service.js scripts/test_skills.js scripts/test_courses.js scripts/test_course_batch.js",
     "desktop": "electron .",
     "build": "node scripts/build_exe.js",
     "build:desktop": "node scripts/build_desktop.js",
@@ -26,6 +28,8 @@
   "devDependencies": {
     "@yao-pkg/pkg": "^6.23.0",
     "electron": "^44.5.1",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "mammoth": "1.13.0",
+    "pdfjs-dist": "5.7.284"
   }
 }

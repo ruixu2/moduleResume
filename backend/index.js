@@ -10,13 +10,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { URL } = require('node:url');
 const { spawn } = require('node:child_process');
+const { randomUUID } = require('node:crypto');
 const { version: appVersion } = require('../package.json');
+const STARTED_AT = Date.now();
 
 const { RESOURCE_ROOT, IS_PKG, dataDir } = require('./paths');
 const storage = require('./storage');
 const render = require('./render');
 const themes = require('./themes');
 const pdf = require('./pdf');
+const resumeAi = require('./resume-ai');
 
 const FRONTEND = path.join(RESOURCE_ROOT, 'frontend');
 
@@ -24,6 +27,7 @@ const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -93,6 +97,64 @@ function readBody(req, limit) {
 async function readJson(req) {
   const text = await readBody(req);
   return text ? JSON.parse(text) : null;
+}
+
+/* ---------------- 重启软件 ---------------- */
+let restartHook = null;
+let restarting = false;
+
+function runtimeMode() {
+  if (process.versions && process.versions.electron) return 'electron';
+  if (IS_PKG) return 'exe';
+  return 'node';
+}
+
+function isLocalRequest(req) {
+  const addr = String((req.socket && req.socket.remoteAddress) || '');
+  return addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
+}
+
+/* 启动继任进程：EXE 直接重启自身；开发模式用 node 重启 run.js */
+function spawnSuccessor() {
+  const args = process.argv.slice(2);
+  /* 旧页面会在服务恢复后自动刷新，避免新进程再开一个重复标签页 */
+  if (args.indexOf('--no-browser') < 0) args.push('--no-browser');
+  const env = Object.assign({}, process.env);
+  if (IS_PKG) {
+    /* pkg 会给子进程注入 PKG_EXECPATH 并按该变量调整 argv；
+       置空后按“直接启动”处理，避免用户参数被移位。 */
+    env.PKG_EXECPATH = '';
+  }
+  const cmd = process.execPath;
+  const cmdArgs = IS_PKG ? args : [process.argv[1]].concat(args).filter(Boolean);
+  const child = spawn(cmd, cmdArgs, {
+    detached: true,
+    stdio: 'ignore',
+    cwd: process.cwd(),
+    env,
+    windowsHide: true,
+  });
+  child.unref();
+}
+
+function scheduleRestart() {
+  if (typeof restartHook === 'function') {
+    try { restartHook(); return; }
+    catch (err) { console.error('[moduleResume] 重启失败：', err); }
+  }
+  let launched = false;
+  const launch = () => {
+    if (launched) return;
+    launched = true;
+    try { spawnSuccessor(); }
+    catch (err) { console.error('[moduleResume] 重启失败：', err); }
+    process.exit(0);
+  };
+  try {
+    server.close(launch);
+    if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
+  } catch (err) { launch(); }
+  setTimeout(launch, 1500).unref();
 }
 
 function findVariant(vid) {
@@ -226,11 +288,57 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/health') {
       return sendJson(res, {
         ok: true, app: 'moduleResume', version: appVersion,
-        runtime: 'node ' + process.version, packaged: IS_PKG, data_dir: dataDir(),
+        runtime: 'node ' + process.version, packaged: IS_PKG, mode: runtimeMode(),
+        started: STARTED_AT, data_dir: dataDir(),
       });
     }
 
+    if (p === '/api/restart' && m === 'POST') {
+      if (!isLocalRequest(req)) return sendJson(res, { error: '仅允许在本机重启软件。' }, 403);
+      if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) {
+        return sendJson(res, { error: '请求必须使用 JSON 格式。' }, 415);
+      }
+      try { await readJson(req); }
+      catch (e) { return sendJson(res, { error: '请求内容格式不正确。' }, 400); }
+      if (restarting) return sendJson(res, { ok: true, restarting: true, mode: runtimeMode() });
+      restarting = true;
+      res.once('finish', () => setTimeout(scheduleRestart, 120));
+      return sendJson(res, { ok: true, mode: runtimeMode() });
+    }
+
     if (p === '/api/themes' && m === 'GET') return sendJson(res, themes.list());
+
+    if ((p === '/api/ai/extract' || p === '/api/ai/import') && m === 'POST') {
+      res.setHeader('Cache-Control', 'no-store');
+      if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) {
+        return sendJson(res, { error: '请求必须使用 JSON 格式。' }, 415);
+      }
+      const body = await readJson(req);
+      if (p === '/api/ai/extract') return sendJson(res, await resumeAi.extractResume(body));
+      if (!body || !body.projectId || storage.currentId() !== body.projectId) {
+        return sendJson(res, { error: '当前项目已切换，请重新打开提取结果。' }, 409);
+      }
+      const workspace = storage.loadAll();
+      const selected = resumeAi.normalizeResult({ profile: body.profile || {}, blocks: body.blocks || [] });
+      for (const key of Object.keys(selected.profile)) {
+        const before = body.expectedProfile && body.expectedProfile[key];
+        if (String(before == null ? '' : before) !== String((workspace.profile || {})[key] || '')) {
+          return sendJson(res, { error: '基础信息已被修改，请重新打开提取结果后再导入。' }, 409);
+        }
+      }
+      const merged = resumeAi.buildImport({ ...selected, createVersion: body.createVersion, versionName: body.versionName }, workspace);
+      const changes = [];
+      if (merged.importedProfileFields) changes.push(['profile', merged.profile]);
+      if (merged.importedBlocks) changes.push(['blocks', merged.blocks]);
+      if (merged.versionId) changes.push(['variants', merged.variants]);
+      try {
+        for (const [name, value] of changes) storage.save(name, value);
+      } catch (e) {
+        for (const [name] of changes) { try { storage.save(name, workspace[name]); } catch (_) { /* best-effort rollback */ } }
+        throw e;
+      }
+      return sendJson(res, { importedBlocks: merged.importedBlocks, importedProfileFields: merged.importedProfileFields, versionId: merged.versionId });
+    }
 
     /* --- 个人项目（多工作区） --- */
     if (p === '/api/projects') {
@@ -262,6 +370,41 @@ const server = http.createServer(async (req, res) => {
       const name = ent[1];
       if (m === 'GET') return sendJson(res, storage.load(name));
       if (m === 'PUT') { storage.save(name, await readJson(req)); return sendJson(res, { ok: true }); }
+    }
+
+    if (p === '/api/photos' && m === 'POST') {
+      if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) return sendJson(res, { error: '请求必须使用 JSON 格式。' }, 415);
+      const body = await readJson(req);
+      if (!body || !body.projectId || storage.currentId() !== body.projectId) return sendJson(res, { error: '当前项目已切换，请重新选择照片。' }, 409);
+      const encoded = String(body.dataUrl || '').match(/^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/);
+      if (!encoded) return sendJson(res, { error: '照片格式无效，请选择 JPG、PNG 或 WebP 图片。' }, 400);
+      const bytes = Buffer.from(encoded[1], 'base64');
+      if (bytes.length < 4 || bytes.length > 3 * 1024 * 1024 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[bytes.length - 2] !== 0xff || bytes[bytes.length - 1] !== 0xd9) {
+        return sendJson(res, { error: '照片无效或过大，请重新选择图片。' }, 400);
+      }
+      const variants = storage.load('variants') || [];
+      if (!Array.isArray(variants) || !variants.some(v => v.id === body.variantId)) return sendJson(res, { error: '简历版本不存在，请重新打开。' }, 404);
+      const profile = storage.load('profile') || {};
+      const oldPhotos = Array.isArray(profile.photos) ? profile.photos : [];
+      const id = 'photo-' + randomUUID();
+      const entry = { id, name: String(body.name || '证件照').trim().slice(0, 40) || '证件照', file: id + '.jpg' };
+      const updatedProfile = Object.assign({}, profile, { photos: oldPhotos.concat([entry]) });
+      if (!updatedProfile.photoId && !oldPhotos.length) updatedProfile.photoId = id;
+      const updatedVariants = variants.map(v => v.id === body.variantId ? Object.assign({}, v, { photoId: id }) : v);
+      const dir = path.join(storage.assetsDir(), 'photos');
+      fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, entry.file);
+      fs.writeFileSync(file, bytes);
+      try {
+        storage.save('profile', updatedProfile);
+        storage.save('variants', updatedVariants);
+      } catch (e) {
+        try { storage.save('profile', profile); } catch (_) { /* best-effort rollback */ }
+        try { storage.save('variants', variants); } catch (_) { /* best-effort rollback */ }
+        try { fs.rmSync(file, { force: true }); } catch (_) { /* best-effort cleanup */ }
+        throw e;
+      }
+      return sendJson(res, { entry, profile: updatedProfile });
     }
 
     if (p === '/api/photo' && m === 'POST') {
@@ -443,6 +586,7 @@ function parseCliArgs(argv) {
    opts: { host, port, noBrowser, silent, onReady(port, url), onError(err) } */
 function start(opts) {
   opts = opts || {};
+  restartHook = typeof opts.onRestart === 'function' ? opts.onRestart : null;
   const cli = parseCliArgs();
   const host = opts.host || cli.host;
   const port = opts.port != null ? opts.port : cli.port;

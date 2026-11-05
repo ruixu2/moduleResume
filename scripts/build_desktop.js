@@ -45,6 +45,8 @@ function main() {
     process.exit(1);
   }
 
+  require('./prepare_import_assets')();
+
   /* 2. 复制运行时 */
   fs.rmSync(OUT_ROOT, { recursive: true, force: true });
   fs.mkdirSync(OUT_ROOT, { recursive: true });

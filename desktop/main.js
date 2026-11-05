@@ -77,6 +77,10 @@ if (!gotLock) {
         dialog.showErrorBox('moduleResume 启动失败', String((err && err.message) || err));
         app.quit();
       },
+      onRestart: () => {
+        app.relaunch();
+        app.exit(0);
+      },
     });
   });
 

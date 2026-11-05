@@ -113,6 +113,33 @@ function bindProfileEvents() {
 }
 
 /* ---------------- 版本编辑器 ---------------- */
+function photoAsJpeg(file) {
+  if (!file || file.size > 10 * 1024 * 1024) return Promise.reject(new Error('请选择不超过 10 MB 的照片。'));
+  if (!/^image\/(jpeg|png|webp)$/i.test(file.type || '') && !/\.(jpe?g|png|webp)$/i.test(file.name || '')) {
+    return Promise.reject(new Error('请选择 JPG、PNG 或 WebP 照片。'));
+  }
+  return new Promise((resolve, reject) => {
+    const src = URL.createObjectURL(file);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(src); reject(new Error('无法读取图片，请重新选择。')); };
+    img.onload = () => {
+      try {
+        let width = img.width, height = img.height;
+        if (!width || !height) throw new Error('照片尺寸无效。');
+        const scale = Math.min(1, 480 / width, 480 / height);
+        width = Math.max(1, Math.round(width * scale)); height = Math.max(1, Math.round(height * scale));
+        const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+        const context = canvas.getContext('2d');
+        context.fillStyle = '#fff'; context.fillRect(0, 0, width, height);
+        context.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.88));
+      } catch (err) { reject(err); }
+      finally { URL.revokeObjectURL(src); }
+    };
+    img.src = src;
+  });
+}
+
 function openEditor(id) {
   const v = DB.variants.find(x => x.id === id);
   if (!v) return;
@@ -164,6 +191,37 @@ function refreshPreview() {
   /* A4 纸样宽 21cm ≈ 794px（含页边距内衬），按可用宽度等比缩放 */
   const zoom = Math.max(0.35, Math.min(1, (w - 26) / 800)).toFixed(3);
   $('#previewFrame').src = '/render/' + editingVariant.id + '?zoom=' + zoom + '&_=' + Date.now();
+}
+
+/* 预览页没有证件照时，在简历照片位置显示“手动加入证件照”入口。
+   只作用于编辑器内的预览 iframe，不影响打印、HTML 导出和 PDF。 */
+function decoratePreviewPhoto() {
+  const frame = $('#previewFrame');
+  if (!frame || !editingVariant) return;
+  let doc;
+  try { doc = frame.contentDocument; } catch (e) { return; }
+  if (!doc) return;
+  const head = doc.querySelector('.r-head');
+  if (!head) return;
+  const old = doc.querySelector('.preview-photo-action');
+  if (old) old.remove();
+  if (doc.querySelector('img.photo')) return;
+  const btn = doc.createElement('button');
+  btn.type = 'button';
+  btn.className = 'preview-photo-action';
+  btn.innerHTML = '＋<br>手动加入<br>证件照';
+  btn.title = '选择本机图片，加入当前简历版本';
+  btn.style.cssText = 'width:2.75cm;height:3.67cm;flex:0 0 auto;display:flex;align-items:center;justify-content:center;' +
+    'text-align:center;padding:0 6pt;border:1.5pt dashed #9db3d8;border-radius:4pt;background:#f7f9fc;' +
+    'color:#1E386B;font:inherit;font-size:9.5pt;line-height:1.5;cursor:pointer';
+  btn.addEventListener('mouseenter', () => { btn.style.background = '#eef4ff'; btn.style.borderColor = '#1E386B'; });
+  btn.addEventListener('mouseleave', () => { btn.style.background = '#f7f9fc'; btn.style.borderColor = '#9db3d8'; });
+  btn.addEventListener('click', e => {
+    e.preventDefault();
+    const input = $('#edPhotoFile');
+    if (input) input.click();
+  });
+  head.appendChild(btn);
 }
 
 function renderSections() {
@@ -258,12 +316,13 @@ function bindSectionList() {
 /* ---------------- 版本级定制（ov） ---------------- */
 const OV_FIELDS = {
   summary:   [{ k: 'text', l: '总结内容', big: true }],
-  skill:     [{ k: 'text', l: '内容（「引导词：内容」会加粗引导词）' }],
+  skill:     [{ k: 'text', l: '技能概览（「引导词：内容」会加粗引导词）' }, { k: 'items', l: '子项（每行一条）', big: true, list: true }],
   education: [{ k: 'start', l: '起始（年月）', month: true }, { k: 'end', l: '结束（年月，可空=至今）', month: true }, { k: 'degreeType', l: '学历/学位' }, { k: 'school', l: '学校' }, { k: 'college', l: '学院' }, { k: 'major', l: '专业（方向）' }, { k: 'advisor', l: '导师' }],
   advisor:   [{ k: 'name', l: '导师姓名' }, { k: 'relationship', l: '培养关系' }, { k: 'academicTitle', l: '职称' }, { k: 'position', l: '职务' }, { k: 'organization', l: '学校 / 单位' }, { k: 'college', l: '学院 / 机构' }, { k: 'research', l: '研究方向', big: true }, { k: 'contact', l: '联系方式' }, { k: 'homepage', l: '个人主页' }, { k: 'brief', l: '简介 / 与本人合作情况', big: true }],
   thesis:    [{ k: 'degreeType', l: '学位类型' }, { k: 'major', l: '专业名称' }, { k: 'school', l: '学校' }, { k: 'college', l: '学院' }, { k: 'dates', l: '完成/答辩时间' }, { k: 'advisor', l: '导师' }, { k: 'brief', l: '论文简要内容', big: true }, { k: 'works', l: '主要工作（每行一条）', big: true, list: true }],
   project:   [{ k: 'source', l: '项目来源' }, { k: 'projType', l: '项目类型' }, { k: 'funding', l: '经费/编号' }, { k: 'work', l: '项目工作' }, { k: 'works', l: '主要工作（每行一条）', big: true, list: true }],
   internship: [{ k: 'company', l: '公司 / 单位' }, { k: 'position', l: '实习岗位' }, { k: 'department', l: '部门' }, { k: 'location', l: '工作地点' }, { k: 'start', l: '起始（年月）', month: true }, { k: 'end', l: '结束（年月，可空=至今）', month: true }, { k: 'works', l: '实习工作与成果（每行一条）', big: true, list: true }],
+  course:    [{ k: 'organization', l: '开课单位' }, { k: 'courseType', l: '课程类型' }, { k: 'dates', l: '学习时间' }, { k: 'credits', l: '学分 / 学时' }, { k: 'score', l: '成绩' }, { k: 'desc', l: '课程内容与收获', big: true }],
   academic_service: [{ k: 'organization', l: '机构 / 期刊 / 学术组织' }, { k: 'position', l: '职务 / 角色' }, { k: 'start', l: '起始（年月）', month: true }, { k: 'end', l: '结束（年月，可空=至今）', month: true }, { k: 'desc', l: '职责与成果', big: true }],
   award:     [{ k: 'level', l: '获奖级别' }, { k: 'rank', l: '奖项等级' }, { k: 'date', l: '获奖时间' }, { k: 'organization', l: '颁奖单位' }, { k: 'recipient', l: '获奖身份 / 排名' }, { k: 'desc', l: '获奖说明 / 个人贡献', big: true }],
   paper:     [{ k: 'journal', l: '期刊名称' }, { k: 'partition', l: '分区' }, { k: 'impactFactor', l: '影响因子' }, { k: 'date', l: '发表时间' }, { k: 'volume', l: '卷期页码' }, { k: 'note', l: '作者位次备注' }, { k: 'desc', l: '简介', big: true }],
@@ -273,11 +332,26 @@ const OV_FIELDS = {
 };
 
 /* 取某字段的当前生效值（优先新版 ov.content，其次旧版扁平 ov，最后素材块原文） */
+function ovOriginal(b, key) {
+  const content = b.content || {};
+  if (b.type === 'project' && key === 'works' && !Array.isArray(content.works)) {
+    return Array.isArray(content.bullets) ? content.bullets : [];
+  }
+  return content[key];
+}
 function ovEffective(it, b, key) {
   const ov = it.ov || {};
   if (ov.content && ov.content[key] !== undefined) return ov.content[key];
   if (typeof ov[key] === 'string' || Array.isArray(ov[key])) return ov[key];
-  return (b.content || {})[key];
+  if (b.type === 'project' && key === 'works' && ov.bullets && typeof ov.bullets === 'object') {
+    const rows = (ovOriginal(b, key) || []).slice();
+    for (const [index, value] of Object.entries(ov.bullets)) {
+      const i = Number(index);
+      if (Number.isInteger(i) && i >= 0 && i < rows.length) rows[i] = value;
+    }
+    return rows;
+  }
+  return ovOriginal(b, key);
 }
 
 function openOverrideEditor(si, ii) {
@@ -288,7 +362,7 @@ function openOverrideEditor(si, ii) {
   if (!b) { toast('素材块已被删除，无法定制'); return; }
   it.ov = it.ov || {};
   const fields = OV_FIELDS[b.type] || [{ k: 'text', l: '内容', big: true }];
-  const hasTitle = ['project', 'internship', 'academic_service', 'award', 'paper', 'unpublished_paper', 'patent', 'custom', 'thesis'].indexOf(b.type) >= 0;
+  const hasTitle = ['project', 'internship', 'academic_service', 'award', 'paper', 'unpublished_paper', 'patent', 'custom', 'thesis', 'course'].indexOf(b.type) >= 0;
   const hasGroup = ['paper', 'unpublished_paper', 'patent'].indexOf(b.type) >= 0;
 
   let html = '<h3>版本级定制 · ' + esc((TYPES[b.type] || {}).label || b.type) + '</h3>' +
@@ -298,6 +372,11 @@ function openOverrideEditor(si, ii) {
   for (const f of fields) {
     const v = ovEffective(it, b, f.k);
     const val = f.list ? (Array.isArray(v) ? v.join('\n') : (v == null ? '' : String(v))) : (v == null ? '' : String(v));
+    if (b.type === 'project' && f.k === 'works') {
+      html += '<label style="margin-bottom:4px">主要工作（勾选显示，可逐条修改、增删和调整顺序）</label>' +
+        '<div id="ovWorksRows"></div><button class="btn tiny" id="ovWorksAdd" type="button">+ 添加主要工作</button>';
+      continue;
+    }
     html += '<label>' + esc(f.l) +
       (f.big
         ? '<textarea id="ov_' + f.k + '" rows="' + (f.list ? 6 : 4) + '">' + esc(val) + '</textarea>'
@@ -309,6 +388,42 @@ function openOverrideEditor(si, ii) {
     '<span style="flex:1"></span>' +
     '<button class="btn" data-close>取消</button><button class="btn primary" id="ovOk">保存定制</button></div>';
   modal(html);
+
+  if (b.type === 'project') {
+    const rows = $('#ovWorksRows');
+    function addWork(value, enabled) {
+      const row = document.createElement('div');
+      row.className = 'work-row override-work-row';
+      row.innerHTML = '<label class="project-work-select"><input type="checkbox" data-work-enabled aria-label="在本简历中显示此项"><span>显示</span></label>' +
+        '<textarea rows="2" aria-label="项目主要工作"></textarea>' +
+        '<button type="button" class="btn tiny" data-work-up title="上移">↑</button>' +
+        '<button type="button" class="btn tiny" data-work-down title="下移">↓</button>' +
+        '<button type="button" class="btn tiny danger" data-work-delete>删除</button>';
+      row.querySelector('textarea').value = value || '';
+      row.querySelector('[data-work-enabled]').checked = enabled !== false;
+      row.querySelector('[data-work-up]').onclick = () => { if (row.previousElementSibling) rows.insertBefore(row, row.previousElementSibling); };
+      row.querySelector('[data-work-down]').onclick = () => { if (row.nextElementSibling) rows.insertBefore(row.nextElementSibling, row); };
+      row.querySelector('[data-work-delete]').onclick = () => row.remove();
+      rows.appendChild(row);
+    }
+    const works = ovEffective(it, b, 'works');
+    if (Array.isArray(it.ov.projectWorks)) {
+      it.ov.projectWorks.forEach(work => addWork(work && work.text, !(work && work.enabled === false)));
+    } else {
+      const selected = Array.isArray(works) ? works : [];
+      selected.forEach(work => addWork(work, true));
+      // Reconstruct deselected original rows for older versions that only saved content.works.
+      if (it.ov.content && Array.isArray(it.ov.content.works)) {
+        const counts = new Map();
+        selected.forEach(work => counts.set(work, (counts.get(work) || 0) + 1));
+        (ovOriginal(b, 'works') || []).forEach(work => {
+          if ((counts.get(work) || 0) > 0) counts.set(work, counts.get(work) - 1);
+          else addWork(work, false);
+        });
+      }
+    }
+    $('#ovWorksAdd').onclick = () => { addWork(''); const inputs = rows.querySelectorAll('textarea'); inputs[inputs.length - 1].focus(); };
+  }
 
   const clearBtn = $('#ovClear');
   if (clearBtn) clearBtn.onclick = async () => {
@@ -324,15 +439,25 @@ function openOverrideEditor(si, ii) {
     if (gEl) { const v = gEl.value.trim(); if (v && v !== (b.group || '')) next.group = v; }
     const content = {};
     for (const f of fields) {
-      const el = $('#ov_' + f.k); if (!el) continue;
-      const orig = (b.content || {})[f.k];
+      const isProjectWorks = b.type === 'project' && f.k === 'works';
+      const el = isProjectWorks ? $('#ovWorksRows') : $('#ov_' + f.k); if (!el) continue;
+      const orig = ovOriginal(b, f.k);
       if (f.list) {
-        const arr = el.value.split('\n').map(s => s.trim()).filter(Boolean);
+        const rows = isProjectWorks ? Array.from(el.children).map(row => ({
+          text: row.querySelector('textarea').value.trim(), enabled: row.querySelector('[data-work-enabled]').checked,
+        })).filter(row => row.text) : [];
+        const arr = isProjectWorks ? rows.filter(row => row.enabled).map(row => row.text)
+          : el.value.split('\n').map(s => s.trim()).filter(Boolean);
         const o = Array.isArray(orig) ? orig : [];
-        if (JSON.stringify(arr) !== JSON.stringify(o)) content[f.k] = arr;
+        const neutralRows = !isProjectWorks || (rows.length === o.length && rows.every((row, i) => row.enabled && row.text === o[i]));
+        if (JSON.stringify(arr) !== JSON.stringify(o) || !neutralRows) {
+          content[f.k] = arr;
+          if (isProjectWorks) next.projectWorks = rows;
+        }
       } else {
         const v = el.value.trim();
-        const allowEmpty = ['internship', 'academic_service'].includes(b.type) && f.k === 'end';
+        const allowEmpty = (['internship', 'academic_service'].includes(b.type) && f.k === 'end') ||
+          (b.type === 'project' && f.k === 'work');
         if ((v !== '' || allowEmpty) && v !== String(orig == null ? '' : orig)) content[f.k] = v;
       }
     }
@@ -615,7 +740,50 @@ function bindEditorBar() {
   };
   $('#previewRefresh').onclick = () => refreshPreview();
   $('#previewOpen').onclick = () => window.open('/render/' + editingVariant.id, '_blank');
+  $('#edPhotoUpload').onclick = () => $('#edPhotoFile').click();
+  $('#edPhotoFile').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file || !editingVariant) return;
+    const projectId = PROJECTS.current, variantId = editingVariant.id;
+    const button = $('#edPhotoUpload');
+    button.disabled = true;
+    try {
+      const dataUrl = await photoAsJpeg(file);
+      if (PROJECTS.current !== projectId || !editingVariant || editingVariant.id !== variantId) throw new Error('当前项目或简历已切换，请重新选择照片。');
+      await saveEditor(true);
+      const response = await fetch('/api/photos', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, variantId, dataUrl, name: (file.name || '').replace(/\.[^.]+$/, '') }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || '上传失败');
+      if (PROJECTS.current === projectId) {
+        DB.profile = result.profile;
+        const saved = DB.variants.find(v => v.id === variantId);
+        if (saved) saved.photoId = result.entry.id;
+        renderProfile();
+        let positionAdjusted = false;
+        if (editingVariant && editingVariant.id === variantId) {
+          editingVariant.photoId = result.entry.id;
+          /* 自定义样式若设置为“不显示照片”，加入照片后自动改为右上，确保能看到结果 */
+          if (editingVariant.style && editingVariant.style.photoPos === 'none') {
+            editingVariant.style.photoPos = 'right';
+            const posSel = $('#stPhotoPos');
+            if (posSel) posSel.value = 'right';
+            positionAdjusted = true;
+          }
+          fillPhotoOptions();
+          $('#edPhoto').value = result.entry.id;
+          await saveEditor(true);
+          refreshPreview();
+        }
+        toast(positionAdjusted ? '证件照已加入，照片位置已切换为右上' : '证件照已加入并用于当前简历');
+      } else {
+        toast('照片已保存到原项目，请重新打开当前简历查看');
+      }
+    } catch (err) { toast('照片上传失败：' + err.message); }
+    finally { button.disabled = false; e.target.value = ''; }
+  });
   fillEditorOptions();
+  $('#previewFrame').addEventListener('load', decoratePreviewPhoto);
   bindStylePanel();
   $('#edTheme').addEventListener('change', async () => {
     editingVariant.themeId = $('#edTheme').value;
@@ -767,6 +935,7 @@ function openProjectManager() {
 /* ---------------- 全局事件 ---------------- */
 function bindEvents() {
   $$('.tab').forEach(t => t.onclick = () => showView(t.dataset.view));
+  $('#aiResumeImport').onclick = openAiResumeImport;
 
   // 个人项目
   $('#projectSel').addEventListener('change', e => switchProject(e.target.value));
@@ -844,6 +1013,7 @@ function bindEvents() {
   typeSel.onchange = renderBlocks;
   $('#blockSearch').oninput = debounce(renderBlocks, 200);
   $('#addBlockBtn').onclick = () => openBlockModal(null);
+  $('#batchCourseBtn').onclick = openBatchCourseModal;
   $('#blockList').addEventListener('click', e => {
     const edit = e.target.closest('[data-editblock]');
     const dup = e.target.closest('[data-dupblock]');
@@ -931,12 +1101,129 @@ function bindEvents() {
     e.target.value = '';
   };
 
+  // 重启软件
+  $('#restartApp').onclick = restartApplication;
+
   // Ctrl+S 保存（编辑器内）
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && $('#view-editor').classList.contains('active')) {
       e.preventDefault(); saveEditor(false);
     }
   });
+}
+
+/* ---------------- 重启软件 ---------------- */
+let restartPending = false;
+
+/* 重启前把仍在防抖队列里的编辑立即落盘 */
+async function flushBeforeRestart() {
+  const bmOk = $('#bmOk');
+  if (bmOk && typeof bmOk.onclick === 'function') await bmOk.onclick();
+  if (typeof applyStyleChange.flush === 'function') await applyStyleChange.flush();
+  if (typeof autosaveEditor.flush === 'function') await autosaveEditor.flush();
+  if (typeof saveProfile.flush === 'function') await saveProfile.flush();
+  if (editingVariant && $('#view-editor').classList.contains('active')) await saveEditor(true);
+}
+
+function showRestartOverlay() {
+  const el = $('#restartOverlay');
+  if (!el) return;
+  el.hidden = false;
+  const hint = $('#restartHint');
+  if (hint) hint.textContent = '正在保存编辑并重新启动，请稍候。';
+  const reload = $('#restartReload');
+  if (reload) reload.hidden = true;
+  const spinner = $('.restart-spinner', el);
+  if (spinner) spinner.hidden = false;
+}
+
+/* 等待新进程接管端口：started 变化才算真正重启完成 */
+function waitForServerRestart(prevStarted) {
+  const deadline = Date.now() + 45000;
+  let sawDown = false;
+  return new Promise(resolve => {
+    const tick = async () => {
+      try {
+        const r = await fetch('/api/health', { cache: 'no-store' });
+        if (r.ok) {
+          const h = await r.json();
+          if (h && h.ok) {
+            const changed = prevStarted ? String(h.started) !== String(prevStarted) : sawDown;
+            if (changed) { resolve(true); return; }
+          }
+        } else {
+          sawDown = true;
+        }
+      } catch (e) { sawDown = true; }
+      if (Date.now() > deadline) { resolve(false); return; }
+      setTimeout(tick, 400);
+    };
+    setTimeout(tick, 500);
+  });
+}
+
+async function restartApplication() {
+  if (restartPending) return;
+  if (!confirm('重启软件会重新启动当前程序，桌面窗口将关闭后重新打开。\n当前编辑会先自动保存，确定继续？')) return;
+  restartPending = true;
+  const btn = $('#restartApp');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 正在重启…'; }
+  let prevStarted = '';
+  try {
+    const h = await api.get('/api/health');
+    prevStarted = h && h.started ? String(h.started) : '';
+  } catch (e) { /* 取不到旧启动标识时退回“先断开再连上”的判断 */ }
+  try {
+    await flushBeforeRestart();
+  } catch (err) {
+    restartPending = false;
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 重启软件'; }
+    alert('保存当前编辑失败，已取消重启：\n' + (err && err.message ? err.message : err));
+    return;
+  }
+  showRestartOverlay();
+  let mode = '';
+  try {
+    const r = await fetch('/api/restart', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    mode = (data && data.mode) || '';
+  } catch (err) {
+    /* 服务开始退出时连接可能被中断，继续等待恢复；明确的 4xx 才视为失败 */
+    if (err && /^HTTP 4\d\d$/.test(err.message || '')) {
+      restartPending = false;
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 重启软件'; }
+      const overlay = $('#restartOverlay'); if (overlay) overlay.hidden = true;
+      alert('重启失败：' + err.message);
+      return;
+    }
+  }
+  /* Electron 桌面版：旧窗口随进程退出，主进程会自动打开新窗口 */
+  if (mode === 'electron') {
+    setTimeout(() => {
+      restartPending = false;
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 重启软件'; }
+      const hint = $('#restartHint');
+      if (hint) hint.textContent = '重启未完成。请关闭本窗口后重新打开 moduleResume。';
+      const spinner = $('#restartOverlay .restart-spinner');
+      if (spinner) spinner.hidden = true;
+    }, 10000);
+    return;
+  }
+  const ok = await waitForServerRestart(prevStarted);
+  if (ok) { location.reload(); return; }
+  restartPending = false;
+  if (btn) { btn.disabled = false; btn.textContent = '🔄 重启软件'; }
+  const hint = $('#restartHint');
+  if (hint) hint.textContent = '等待服务恢复超时。可点击下方按钮重试，或手动重新打开 moduleResume。';
+  const spinner = $('#restartOverlay .restart-spinner');
+  if (spinner) spinner.hidden = true;
+  const reload = $('#restartReload');
+  if (reload) { reload.hidden = false; reload.onclick = () => location.reload(); }
 }
 
 /* ---------------- 启动 ---------------- */

@@ -20,16 +20,20 @@ function splitLead(text) {
   return null;
 }
 
-function bulletLi(text) {
+function bulletLi(text, subitems) {
   const m = splitLead(text);
-  if (m) return `<li><b>${esc(m.lead)}</b>${m.colon}${esc(m.rest)}</li>`;
-  return `<li>${esc(text)}</li>`;
+  const head = m ? `<b>${esc(m.lead)}</b>${m.colon}${esc(m.rest)}` : esc(text);
+  const subs = Array.isArray(subitems) ? subitems.map(s => String(s == null ? '' : s).trim()).filter(Boolean) : [];
+  const nested = subs.length ? '<ul class="skill-subitems">' + subs.map(s => bulletLi(s)).join('') + '</ul>' : '';
+  return `<li>${head}${nested}</li>`;
 }
 
-function bulletMd(text) {
+function bulletMd(text, subitems) {
   const m = splitLead(text);
-  if (m) return `- **${m.lead}**${m.colon}${m.rest}`;
-  return `- ${text}`;
+  const head = m ? `- **${m.lead}**${m.colon}${m.rest}` : `- ${text}`;
+  const subs = Array.isArray(subitems) ? subitems.map(s => String(s == null ? '' : s).trim()).filter(Boolean) : [];
+  if (!subs.length) return head;
+  return [head].concat(subs.map(s => '  ' + bulletMd(s))).join('\n');
 }
 
 /* 学位论文：学位类型 / 专业名称（兼容旧版合并字段 degree） */
@@ -211,6 +215,21 @@ function awardParts(b, variant) {
     desc: c.desc || '',
   };
 }
+
+function courseParts(b, variant) {
+  const c = b.content || {};
+  return {
+    title: b.title || label(variant, '学习课程', 'Course'),
+    meta: [
+      c.organization ? label(variant, '开课单位：', 'Institution: ') + c.organization : '',
+      c.courseType,
+      c.dates,
+      c.credits ? label(variant, '学分/学时：', 'Credits: ') + c.credits : '',
+      c.score ? label(variant, '成绩：', 'Grade: ') + c.score : '',
+    ].filter(Boolean).join(' ｜ '),
+    desc: c.desc || '',
+  };
+}
 function internshipParts(b, variant) {
   const c = b.content || {};
   const identity = [c.company, c.position].filter(Boolean).join(' · ');
@@ -320,7 +339,10 @@ function renderSectionHtml(section, items, variant) {
     }
   } else if (kind === 'bullets') {
     out.push('<ul class="bullets">');
-    for (const b of items) out.push(bulletLi(b.content.text || ''));
+    for (const b of items) {
+      const subItems = b.type === 'skill' ? (b.content && b.content.items) : null;
+      out.push(bulletLi(b.content.text || '', subItems));
+    }
     out.push('</ul>');
   } else if (kind === 'projects') {
     for (const b of items) {
@@ -347,6 +369,13 @@ function renderSectionHtml(section, items, variant) {
   } else if (kind === 'awards') {
     for (const b of items) {
       const entry = awardParts(b, variant);
+      out.push(`<h3>${esc(entry.title)}</h3>`);
+      if (entry.meta) out.push(`<p class="proj-meta">${esc(entry.meta)}</p>`);
+      if (entry.desc) out.push(`<p>${esc(entry.desc)}</p>`);
+    }
+  } else if (kind === 'courses') {
+    for (const b of items) {
+      const entry = courseParts(b, variant);
       out.push(`<h3>${esc(entry.title)}</h3>`);
       if (entry.meta) out.push(`<p class="proj-meta">${esc(entry.meta)}</p>`);
       if (entry.desc) out.push(`<p>${esc(entry.desc)}</p>`);
@@ -521,7 +550,10 @@ function renderMarkdown(profile, blocks, variant) {
         }
       }
     } else if (kind === 'bullets') {
-      for (const b of items) block.push(bulletMd(b.content.text || ''));
+      for (const b of items) {
+        const subItems = b.type === 'skill' ? (b.content && b.content.items) : null;
+        block.push(bulletMd(b.content.text || '', subItems));
+      }
     } else if (kind === 'projects') {
       for (const b of items) {
         const c = b.content;
@@ -545,6 +577,13 @@ function renderMarkdown(profile, blocks, variant) {
     } else if (kind === 'awards') {
       for (const b of items) {
         const entry = awardParts(b, variant);
+        block.push(`### ${entry.title}`);
+        if (entry.meta) block.push(entry.meta);
+        if (entry.desc) block.push(entry.desc);
+      }
+    } else if (kind === 'courses') {
+      for (const b of items) {
+        const entry = courseParts(b, variant);
         block.push(`### ${entry.title}`);
         if (entry.meta) block.push(entry.meta);
         if (entry.desc) block.push(entry.desc);

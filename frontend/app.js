@@ -13,6 +13,7 @@ const TYPES = {
   skill:     { label: '技能',     color: 't-skill' },
   project:   { label: '项目',     color: 't-project' },
   internship: { label: '实习经历', color: 't-internship' },
+  course:    { label: '学习课程', color: 't-course' },
   academic_service: { label: '学术兼职', color: 't-academic-service' },
   award:     { label: '获奖经历', color: 't-award' },
   paper:     { label: '期刊论文', color: 't-paper' },
@@ -29,6 +30,7 @@ const KINDS = {
   bullets:      { label: '要点列表',   types: ['skill', 'custom'] },
   projects:     { label: '项目详情',   types: ['project'] },
   internships:  { label: '实习经历',   types: ['internship'] },
+  courses:      { label: '学习课程',   types: ['course'] },
   academic_services: { label: '学术兼职', types: ['academic_service'] },
   awards:       { label: '获奖经历',   types: ['award'] },
   publications: { label: '期刊论文列表', types: ['paper'] },
@@ -48,7 +50,23 @@ const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 const deepClone = o => JSON.parse(JSON.stringify(o));
 const uid = p => (p || 'id') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 function today() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-function debounce(fn, ms) { let t; return function () { const a = arguments; clearTimeout(t); t = setTimeout(() => fn.apply(null, a), ms); }; }
+function debounce(fn, ms) {
+  let t = null, lastArgs = null;
+  function wrapped() {
+    lastArgs = arguments;
+    clearTimeout(t);
+    t = setTimeout(() => { t = null; const a = lastArgs; lastArgs = null; fn.apply(null, a); }, ms);
+  }
+  /* 立即执行仍在等待中的一次调用（重启前保存等场景） */
+  wrapped.flush = function () {
+    if (t == null) return undefined;
+    clearTimeout(t); t = null;
+    const a = lastArgs; lastArgs = null;
+    return fn.apply(null, a);
+  };
+  wrapped.cancel = function () { clearTimeout(t); t = null; lastArgs = null; };
+  return wrapped;
+}
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 let toastTimer = null;
@@ -175,7 +193,7 @@ function blockTitle(b) {
     const line = [b.type === 'internship' ? c.company : c.organization, c.position].filter(Boolean).join(' · ');
     if (line) return line;
   }
-  const fallback = c.text || (c.lines && c.lines[0]) || (c.bullets && c.bullets[0]) || c.status || '（未命名素材块）';
+  const fallback = c.text || (Array.isArray(c.items) && c.items[0]) || (c.lines && c.lines[0]) || (c.bullets && c.bullets[0]) || c.status || '（未命名素材块）';
   return String(fallback).slice(0, 50);
 }
 function blockSub(b) {
@@ -188,6 +206,9 @@ function blockSub(b) {
   }
   if (b.type === 'internship') {
     return [eduDateLine(c), c.company, c.position, c.department, c.location, (c.works || [])[0]].filter(Boolean).join('　').slice(0, 100);
+  }
+  if (b.type === 'course') {
+    return [c.organization, c.courseType, c.dates, c.credits, c.score, c.desc].filter(Boolean).join('　').slice(0, 100);
   }
   if (b.type === 'project') {
     const meta = [c.source, c.projType, c.funding].filter(Boolean).join('　');
@@ -219,7 +240,12 @@ function blockSub(b) {
     const line = [d.type, d.major, schoolLine, c.dates].filter(Boolean).join('　');
     return line || String(c.brief || c.desc || '').slice(0, 70);
   }
-  if (b.type === 'summary' || b.type === 'skill') return String(c.text || '').slice(0, 70);
+  if (b.type === 'summary' || b.type === 'skill') {
+    if (b.type === 'skill' && Array.isArray(c.items) && c.items.length) {
+      return (String(c.text || '').slice(0, 40) + '　·　子项 ' + c.items.length + ' 条').trim();
+    }
+    return String(c.text || '').slice(0, 70);
+  }
   return (c.lines || []).join(' / ').slice(0, 70);
 }
 /* 学位论文：学位类型 / 专业名称（兼容旧版合并字段 degree） */
@@ -428,6 +454,7 @@ function defaultSections() {
     { id: uid('sec'), title: '个人总结', kind: 'paragraph', items: [] },
     { id: uid('sec'), title: '核心技能', kind: 'bullets', items: [] },
     { id: uid('sec'), title: '实习经历', kind: 'internships', items: [] },
+    { id: uid('sec'), title: '学习课程', kind: 'courses', items: [] },
     { id: uid('sec'), title: '学术兼职', kind: 'academic_services', items: [] },
     { id: uid('sec'), title: '获奖经历', kind: 'awards', items: [] },
     { id: uid('sec'), title: '科研项目经历', kind: 'projects', items: [] },
@@ -686,7 +713,8 @@ function openBlockModal(id, presetType) {
         '<div id="fWorks"></div>' +
         '<button class="btn tiny" id="fWorksAdd" type="button" style="margin:2px 0 12px">+ 添加一项工作</button>';
     } else if (t === 'skill') {
-      html += '<label>内容（支持「引导词：内容」加粗）<input id="fText" value="' + esc(c.text || '') + '"></label>';
+      html += '<label>技能概览（支持「引导词：内容」加粗）<input id="fText" value="' + esc(c.text || '') + '" placeholder="如：编程与工具：Python / PyTorch / SQL"></label>' +
+        '<label>子项（每行一条，具体说明掌握的工具、方法、熟练程度或应用场景）<textarea id="fSkillItems" rows="5">' + esc((Array.isArray(c.items) ? c.items : []).join('\n')) + '</textarea></label>';
     } else if (t === 'project') {
       html += '<label>项目名称<input id="fTitle" value="' + esc(cur ? cur.title : '') + '"></label>' +
         '<div class="grid2">' +
@@ -711,6 +739,16 @@ function openBlockModal(id, presetType) {
         '<label style="margin-bottom:4px">实习工作与成果（可自定义增删，每项一条）</label>' +
         '<div id="fWorks"></div>' +
         '<button class="btn tiny" id="fWorksAdd" type="button" style="margin:2px 0 12px">+ 添加一项工作 / 成果</button>';
+    } else if (t === 'course') {
+      html += '<label>课程名称<input id="fTitle" value="' + esc(cur ? cur.title : '') + '" placeholder="如：机器学习 / 最优化方法"></label>' +
+        '<div class="grid2">' +
+        '<label>开课单位（可空）<input id="fOrganization" value="' + esc(c.organization || '') + '" placeholder="如：示例大学 / 在线课程平台"></label>' +
+        '<label>课程类型（可空）<input id="fCourseType" value="' + esc(c.courseType || '') + '" placeholder="如：专业必修 / 专业选修 / 公开课"></label></div>' +
+        '<div class="grid2">' +
+        '<label>学习时间（可空）<input id="fDates" value="' + esc(c.dates || '') + '" placeholder="如：2024.09 – 2024.12"></label>' +
+        '<label>学分 / 学时（可空）<input id="fCredits" value="' + esc(c.credits || '') + '" placeholder="如：3 学分 / 48 学时"></label></div>' +
+        '<label>成绩（可空）<input id="fScore" value="' + esc(c.score || '') + '" placeholder="如：92 / 优秀 / Pass"></label>' +
+        '<label>课程内容与收获（可空）<textarea id="fDesc" rows="3" placeholder="课程主题、核心内容、项目实践或个人收获">' + esc(c.desc || '') + '</textarea></label>';
     } else if (t === 'academic_service') {
       html += '<label>兼职标题（可空，默认显示机构与职务）<input id="fTitle" value="' + esc(cur ? cur.title : '') + '"></label>' +
         '<div class="grid2">' +
@@ -806,9 +844,14 @@ function openBlockModal(id, presetType) {
     else if (bt === 'education') { content.start = get('#fStart').trim(); content.end = get('#fEnd').trim(); content.dates = eduDateLine(content); content.school = get('#fSchool').trim(); content.college = get('#fCollege').trim(); content.major = get('#fMajor').trim(); content.degreeType = get('#fDegreeType').trim(); content.advisor = get('#fAdvisor').trim(); }
     else if (bt === 'advisor') { content.name = get('#fAdvisorName').trim(); content.relationship = get('#fRelationship').trim() || '研究生导师'; content.academicTitle = get('#fAcademicTitle').trim(); content.position = get('#fPosition').trim(); content.organization = get('#fOrganization').trim(); content.college = get('#fAdvisorCollege').trim(); content.research = get('#fResearch').trim(); content.contact = get('#fContact').trim(); content.homepage = get('#fHomepage').trim(); content.brief = get('#fAdvisorBrief').trim(); title = [content.relationship, content.name].filter(Boolean).join(' · '); }
     else if (bt === 'thesis') { title = get('#fTitle').trim(); content.degreeType = get('#fDegreeType').trim(); content.major = get('#fMajor').trim(); content.dates = get('#fDates').trim(); content.school = get('#fSchool').trim(); content.college = get('#fCollege').trim(); content.advisor = get('#fAdvisor').trim(); content.brief = get('#fBrief'); content.works = $$('#fWorks textarea').map(el => el.value.trim()).filter(Boolean); }
-    else if (bt === 'skill') { content.text = get('#fText').trim(); title = (content.text.split('：')[0] || '').slice(0, 20); }
+    else if (bt === 'skill') {
+      content.text = get('#fText').trim();
+      content.items = get('#fSkillItems').split('\n').map(s => s.trim()).filter(Boolean);
+      title = (content.text.split('：')[0] || content.items[0] || '').slice(0, 20);
+    }
     else if (bt === 'project') { title = get('#fTitle').trim(); content.source = get('#fSource').trim(); content.projType = get('#fProjType').trim(); content.funding = get('#fFunding').trim(); content.work = get('#fWork').trim(); content.works = $$('#fWorks textarea').map(el => el.value.trim()).filter(Boolean); }
     else if (bt === 'internship') { title = get('#fTitle').trim(); content.company = get('#fCompany').trim(); content.position = get('#fPosition').trim(); content.department = get('#fDepartment').trim(); content.location = get('#fLocation').trim(); content.start = get('#fStart').trim(); content.end = get('#fEnd').trim(); content.works = $$('#fWorks textarea').map(el => el.value.trim()).filter(Boolean); }
+    else if (bt === 'course') { title = get('#fTitle').trim(); content.organization = get('#fOrganization').trim(); content.courseType = get('#fCourseType').trim(); content.dates = get('#fDates').trim(); content.credits = get('#fCredits').trim(); content.score = get('#fScore').trim(); content.desc = get('#fDesc').trim(); }
     else if (bt === 'academic_service') { title = get('#fTitle').trim(); content.organization = get('#fOrganization').trim(); content.position = get('#fPosition').trim(); content.start = get('#fStart').trim(); content.end = get('#fEnd').trim(); content.desc = get('#fDesc').trim(); }
     else if (bt === 'award') { title = get('#fTitle').trim(); content.level = get('#fLevel').trim(); content.rank = get('#fRank').trim(); content.date = get('#fDate').trim(); content.organization = get('#fOrganization').trim(); content.recipient = get('#fRecipient').trim(); content.desc = get('#fDesc').trim(); }
     else if (bt === 'paper') { title = get('#fTitle').trim(); group = get('#fGroup').trim(); content.note = get('#fNote').trim(); content.journal = get('#fJournal').trim(); content.partition = get('#fPartition').trim(); content.impactFactor = get('#fImpactFactor').trim(); content.date = get('#fDate').trim(); content.volume = get('#fVolume').trim(); content.desc = get('#fDesc'); }
@@ -863,6 +906,69 @@ function openBlockModal(id, presetType) {
     modalCloseHook = null;
     closeModal();
   };
+}
+
+/* ---------------- 批量添加学习课程 ---------------- */
+function openBatchCourseModal() {
+  if (typeof CourseBatch === 'undefined') { toast('批量课程组件未加载，请重启软件后重试'); return; }
+  const example = [
+    '机器学习 | 示例大学 | 专业必修 | 2024.09 – 2024.12 | 3 学分 | 92 | 监督学习、无监督学习与模型评估',
+    '最优化方法 | 示例大学 | 专业选修 | 2023.02 – 2023.06 | 2 学分 | 优秀 | 凸优化与数值实现',
+  ].join('\n');
+  modal(
+    '<h3>批量添加学习课程</h3>' +
+    '<p class="muted" style="margin:-8px 0 10px">每行一门课程，字段用 <b>|</b> 或制表符分隔；只有课程名称必填。<br>' +
+    '顺序：课程名称 | 开课单位 | 课程类型 | 学习时间 | 学分/学时 | 成绩 | 课程内容与收获。<br>' +
+    '空行和 # 开头的行会忽略，表头行会自动跳过。</p>' +
+    '<textarea id="bcText" rows="9" placeholder="机器学习 | 示例大学 | 专业必修 | 2024.09 – 2024.12 | 3 学分 | 92 | 监督学习与模型评估"></textarea>' +
+    '<div id="bcPreview" class="muted" style="margin-top:8px"></div>' +
+    '<div class="modal-actions"><button class="btn" id="bcExample" type="button" style="margin-right:auto">填入示例</button>' +
+    '<button class="btn" data-close>取消</button><button class="btn primary" id="bcOk" disabled>添加课程</button></div>'
+  );
+  const ta = $('#bcText');
+  const ok = $('#bcOk');
+  const preview = $('#bcPreview');
+  function renderPreview() {
+    const rows = CourseBatch.parse(ta.value);
+    const max = CourseBatch.MAX_COURSES;
+    preview.textContent = rows.length
+      ? '将添加 ' + rows.length + ' 门课程：' + rows.slice(0, 5).map(r => r.title).join('、') +
+        (rows.length > 5 ? ' 等' : '') + (rows.length >= max ? '（单次最多 ' + max + ' 门）' : '')
+      : '尚未识别到课程。每行一门，至少填写课程名称。';
+    ok.disabled = !rows.length;
+    ok.textContent = rows.length ? '添加 ' + rows.length + ' 门课程' : '添加课程';
+  }
+  ta.addEventListener('input', renderPreview);
+  $('#bcExample').onclick = () => { ta.value = example; ta.focus(); renderPreview(); };
+  ok.onclick = async () => {
+    const rows = CourseBatch.parse(ta.value);
+    if (!rows.length) return;
+    const stamp = today();
+    const created = rows.map(r => ({
+      id: uid('blk'), type: 'course', title: r.title, group: '', tags: [],
+      content: {
+        organization: r.organization, courseType: r.courseType, dates: r.dates,
+        credits: r.credits, score: r.score, desc: r.desc,
+      },
+      updated: stamp,
+    }));
+    DB.blocks.push(...created);
+    try {
+      await saveBlocks();
+      closeModal();
+      const filter = $('#blockTypeFilter');
+      if (filter) filter.value = 'course';
+      const search = $('#blockSearch');
+      if (search) search.value = '';
+      renderBlocks();
+      toast('已添加 ' + created.length + ' 门课程');
+    } catch (err) {
+      DB.blocks = DB.blocks.filter(b => !created.some(c => c.id === b.id));
+      toast('批量添加失败：' + (err && err.message ? err.message : err));
+    }
+  };
+  renderPreview();
+  ta.focus();
 }
 
 async function duplicateBlock(id) {

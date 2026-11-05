@@ -126,6 +126,7 @@ function assertNoPrivateData(setupPath, unpackedDir) {
 
 async function main() {
   ensureDeps();
+  require('./prepare_import_assets')();
   const flag = makeInstalledFlag();
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
