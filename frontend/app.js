@@ -24,21 +24,21 @@ const TYPES = {
 };
 
 const KINDS = {
-  education:    { label: '教育时间线', types: ['education'] },
-  advisors:     { label: '研究生导师（独立板块）', types: ['advisor'] },
-  theses:       { label: '学位论文',   types: ['thesis'] },
-  paragraph:    { label: '段落文本',   types: ['summary', 'custom'] },
-  bullets:      { label: '要点列表',   types: ['skill', 'custom'] },
-  projects:     { label: '项目详情',   types: ['project'] },
-  internships:  { label: '实习经历',   types: ['internship'] },
-  courses:      { label: '学习课程',   types: ['course'] },
-  academic_services: { label: '学术兼职', types: ['academic_service'] },
-  awards:       { label: '获奖经历',   types: ['award'] },
-  publications: { label: '期刊论文列表', types: ['paper'] },
-  conferences:  { label: '会议论文列表', types: ['conference_paper'] },
-  unpublished:  { label: '未发表论文列表', types: ['unpublished_paper'] },
-  patents:      { label: '专利列表',   types: ['patent'] },
-  custom:       { label: '自定义要点', types: ['custom', 'skill', 'summary'] },
+  education:    { label: '教育时间线', title: '教育背景', types: ['education'] },
+  advisors:     { label: '研究生导师（独立板块）', title: '研究生导师', types: ['advisor'] },
+  theses:       { label: '学位论文', title: '学位论文', types: ['thesis'] },
+  paragraph:    { label: '段落文本', title: '段落文本', types: ['summary', 'custom'] },
+  bullets:      { label: '要点列表', title: '要点列表', types: ['skill', 'custom'] },
+  projects:     { label: '项目详情', title: '项目经历', types: ['project'] },
+  internships:  { label: '实习经历', title: '实习经历', types: ['internship'] },
+  courses:      { label: '学习课程', title: '学习课程', types: ['course'] },
+  academic_services: { label: '学术兼职', title: '学术兼职', types: ['academic_service'] },
+  awards:       { label: '获奖经历', title: '获奖经历', types: ['award'] },
+  publications: { label: '期刊论文列表', title: '期刊论文', types: ['paper'] },
+  conferences:  { label: '会议论文列表', title: '会议论文', types: ['conference_paper'] },
+  unpublished:  { label: '未发表论文列表', title: '未发表论文', types: ['unpublished_paper'] },
+  patents:      { label: '专利列表', title: '专利', types: ['patent'] },
+  custom:       { label: '自定义要点', title: '自定义要点', types: ['custom', 'skill', 'summary'] },
 };
 
 const PAPER_TYPES = ['paper', 'conference_paper', 'unpublished_paper'];
@@ -154,6 +154,7 @@ function fmtDateTime(iso) {
 function hasOv(ov) {
   if (!ov) return false;
   if (ov.title || ov.group || ov.text || ov.work || ov.desc) return true;
+  if (ov.showPartition === false || ov.showImpactFactor === false) return true;
   if (ov.content && Object.keys(ov.content).length) return true;
   if (ov.bullets && Object.keys(ov.bullets).length) return true;
   return false;
@@ -967,15 +968,15 @@ function openBlockModal(id, presetType) {
 function openBatchCourseModal() {
   if (typeof CourseBatch === 'undefined') { toast('批量课程组件未加载，请重启软件后重试'); return; }
   const example = [
-    '机器学习 | 示例大学 | 专业必修 | 2024.09 – 2024.12 | 3 学分 | 92 | 监督学习、无监督学习与模型评估',
-    '最优化方法 | 示例大学 | 专业选修 | 2023.02 – 2023.06 | 2 学分 | 优秀 | 凸优化与数值实现',
-  ].join('\n');
+    '机器学习|示例大学|专业必修|2024.09 – 2024.12|3 学分|92|监督学习与模型评估',
+    '最优化方法|示例大学|专业选修|2023.02 – 2023.06|2 学分|优秀|凸优化与数值实现',
+  ].join('\t');
   modal(
     '<h3>批量添加学习课程</h3>' +
-    '<p class="muted" style="margin:-8px 0 10px">每行一门课程，字段用 <b>|</b> 或制表符分隔；只有课程名称必填。<br>' +
+    '<p class="muted" style="margin:-8px 0 10px">多门课程用 <b>Tab</b> 或换行分隔；同一门课程的字段用 <b>|</b> 分隔，只有课程名称必填。<br>' +
     '顺序：课程名称 | 开课单位 | 课程类型 | 学习时间 | 学分/学时 | 成绩 | 课程内容与收获。<br>' +
-    '空行和 # 开头的行会忽略，表头行会自动跳过。</p>' +
-    '<textarea id="bcText" rows="9" placeholder="机器学习 | 示例大学 | 专业必修 | 2024.09 – 2024.12 | 3 学分 | 92 | 监督学习与模型评估"></textarea>' +
+    '空行、# 注释和表头行会自动跳过；可直接粘贴 Excel 的 Tab 分隔内容。</p>' +
+    '<textarea id="bcText" rows="9" placeholder="机器学习|示例大学|专业必修\t最优化方法|示例大学|专业选修"></textarea>' +
     '<div id="bcPreview" class="muted" style="margin-top:8px"></div>' +
     '<div class="modal-actions"><button class="btn" id="bcExample" type="button" style="margin-right:auto">填入示例</button>' +
     '<button class="btn" data-close>取消</button><button class="btn primary" id="bcOk" disabled>添加课程</button></div>'
@@ -989,11 +990,17 @@ function openBatchCourseModal() {
     preview.textContent = rows.length
       ? '将添加 ' + rows.length + ' 门课程：' + rows.slice(0, 5).map(r => r.title).join('、') +
         (rows.length > 5 ? ' 等' : '') + (rows.length >= max ? '（单次最多 ' + max + ' 门）' : '')
-      : '尚未识别到课程。每行一门，至少填写课程名称。';
+      : '尚未识别到课程。多门课程用 Tab 或换行分隔，至少填写课程名称。';
     ok.disabled = !rows.length;
     ok.textContent = rows.length ? '添加 ' + rows.length + ' 门课程' : '添加课程';
   }
   ta.addEventListener('input', renderPreview);
+  ta.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    ta.setRangeText('\t', ta.selectionStart, ta.selectionEnd, 'end');
+    renderPreview();
+  });
   $('#bcExample').onclick = () => { ta.value = example; ta.focus(); renderPreview(); };
   ok.onclick = async () => {
     const rows = CourseBatch.parse(ta.value);

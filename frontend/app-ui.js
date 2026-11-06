@@ -289,11 +289,21 @@ function renderSections() {
       const advisorButton = b && b.type === 'education'
         ? '<button class="btn tiny ov' + (embeddedAdvisors.length ? ' on' : '') + '" data-act="advisor" data-si="' + si + '" data-ii="' + ii + '" title="选择嵌入到这条学历下方的研究生导师">' + (embeddedAdvisors.length ? '导师 ' + embeddedAdvisors.length + ' ✓' : '嵌入导师') + '</button>'
         : '';
+      const ov = it.ov || {};
+      const showPartition = ov.showPartition !== false;
+      const showImpactFactor = ov.showImpactFactor !== false;
+      const paperToggles = b && b.type === 'paper'
+        ? '<button class="btn tiny ov' + (showPartition ? ' on' : '') + '" data-act="toggle-partition" data-si="' + si + '" data-ii="' + ii + '" title="' + (showPartition ? '当前显示分区，点击隐藏' : '当前隐藏分区，点击显示') + '">分区</button>' +
+          '<button class="btn tiny ov' + (showImpactFactor ? ' on' : '') + '" data-act="toggle-impact" data-si="' + si + '" data-ii="' + ii + '" title="' + (showImpactFactor ? '当前显示影响因子，点击隐藏' : '当前隐藏影响因子，点击显示') + '">IF</button>'
+        : b && b.type === 'conference_paper'
+          ? '<button class="btn tiny ov' + (showPartition ? ' on' : '') + '" data-act="toggle-partition" data-si="' + si + '" data-ii="' + ii + '" title="' + (showPartition ? '当前显示会议级别，点击隐藏' : '当前隐藏会议级别，点击显示') + '">级别</button>'
+          : '';
       return '<div class="sec-item">' +
         '<span class="ord">' + (ii + 1) + '</span>' +
         (b ? badge(b) : '<span class="block-badge">已删</span>') +
         '<span class="block-title" title="' + esc(label) + '">' + esc(label) + '</span>' +
         advisorButton +
+        paperToggles +
         '<button class="btn tiny ov' + (customized ? ' on' : '') + '" data-act="custom" data-si="' + si + '" data-ii="' + ii + '" title="版本级定制：只改这个版本，不动素材块库">' + (customized ? '已定制 ✓' : '定制') + '</button>' +
         '<button class="btn tiny" data-act="up" data-si="' + si + '" data-ii="' + ii + '" title="上移">↑</button>' +
         '<button class="btn tiny" data-act="down" data-si="' + si + '" data-ii="' + ii + '" title="下移">↓</button>' +
@@ -346,6 +356,16 @@ function bindSectionList() {
     }
     else if (act === 'pick') { openPicker(si); }
     else if (act === 'advisor') { openAdvisorEmbedPicker(si, ii); }
+    else if (act === 'toggle-partition' || act === 'toggle-impact') {
+      const it = sec.items[ii]; if (!it) return;
+      it.ov = it.ov || {};
+      const key = act === 'toggle-partition' ? 'showPartition' : 'showImpactFactor';
+      if (it.ov[key] === false) delete it.ov[key];
+      else it.ov[key] = false;
+      renderSections();
+      await saveEditor(true);
+      refreshPreview();
+    }
     else if (act === 'custom') { openOverrideEditor(si, ii); }
     else if (act === 'fillall') {
       const compat = (KINDS[sec.kind] || {}).types || [];
@@ -487,6 +507,8 @@ function openOverrideEditor(si, ii) {
   };
   $('#ovOk').onclick = async () => {
     const next = {};
+    if (it.ov && it.ov.showPartition === false) next.showPartition = false;
+    if (it.ov && it.ov.showImpactFactor === false) next.showImpactFactor = false;
     const titleEl = $('#ovTitle');
     if (titleEl) { const v = titleEl.value.trim(); if (v && v !== (b.title || '')) next.title = v; }
     const gEl = $('#ovGroup');
@@ -738,18 +760,35 @@ function openAdvisorEmbedPicker(si, ii) {
   };
 }
 
+function defaultSectionTitle(kind) {
+  const info = KINDS[kind] || {};
+  const label = info.title || info.label || kind || '新板块';
+  return label.replace(/（[^）]*）/g, '').trim() || label;
+}
+
 function openAddSectionModal() {
+  const kinds = Object.keys(KINDS);
+  const firstKind = kinds[0] || '';
   modal(
     '<h3>添加板块</h3>' +
-    '<label>板块标题<input id="asTitle" placeholder="如：实习经历"></label>' +
+    '<label>板块标题<input id="asTitle" value="' + esc(defaultSectionTitle(firstKind)) + '" placeholder="如：实习经历"></label>' +
     '<label>呈现方式<select id="asKind">' +
-    Object.keys(KINDS).map(k => '<option value="' + k + '">' + KINDS[k].label + '</option>').join('') +
+    kinds.map(k => '<option value="' + k + '">' + KINDS[k].label + '</option>').join('') +
     '</select></label>' +
     '<div class="modal-actions"><button class="btn" data-close>取消</button><button class="btn primary" id="asOk">添加</button></div>'
   );
+  const titleInput = $('#asTitle');
+  const kindSel = $('#asKind');
+  let lastDefault = defaultSectionTitle(kindSel.value);
+  kindSel.addEventListener('change', () => {
+    const nextDefault = defaultSectionTitle(kindSel.value);
+    if (!titleInput.value.trim() || titleInput.value === lastDefault) titleInput.value = nextDefault;
+    lastDefault = nextDefault;
+  });
   $('#asOk').onclick = () => {
-    const title = $('#asTitle').value.trim() || '新板块';
-    editingVariant.sections.push({ id: uid('sec'), title: title, kind: $('#asKind').value, items: [] });
+    const kind = kindSel.value;
+    const title = titleInput.value.trim() || defaultSectionTitle(kind);
+    editingVariant.sections.push({ id: uid('sec'), title: title, kind: kind, items: [] });
     closeModal(); renderSections(); autosaveEditor();
   };
 }

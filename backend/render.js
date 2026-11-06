@@ -182,7 +182,9 @@ function sectionItems(section, blocksMap) {
   for (const it of section.items || []) {
     const block = blocksMap[it.bid];
     if (block) {
-      let merged = applyOverride(block, it.ov || {});
+      let merged = Object.assign({}, applyOverride(block, it.ov || {}));
+      merged._showPartition = !it.ov || it.ov.showPartition !== false;
+      merged._showImpactFactor = !it.ov || it.ov.showImpactFactor !== false;
       if (block.type === 'education' && Array.isArray(it.advisorIds) && it.advisorIds.length) {
         const advisors = it.advisorIds.map(id => blocksMap[id]).filter(b => b && b.type === 'advisor');
         if (advisors.length) merged = Object.assign({}, merged, { _advisors: advisors });
@@ -195,23 +197,29 @@ function sectionItems(section, blocksMap) {
 
 function isEnglish(variant) { return variant && variant.locale === 'en'; }
 function label(variant, zh, en) { return isEnglish(variant) ? en : zh; }
-function paperMetrics(c, variant) {
-  const parts = [c.partition, c.impactFactor ? 'IF: ' + c.impactFactor : ''].filter(Boolean);
+function paperMetrics(c, variant, opts) {
+  const showPartition = !opts || opts.showPartition !== false;
+  const showImpactFactor = !opts || opts.showImpactFactor !== false;
+  const parts = [
+    showPartition ? c.partition : '',
+    showImpactFactor && c.impactFactor ? 'IF: ' + c.impactFactor : '',
+  ].filter(Boolean);
   return parts.length ? label(variant, '（', '(') + parts.join(label(variant, '，', ', ')) + label(variant, '）', ')') : '';
 }
-function paperDetail(c, variant) {
+function paperDetail(c, variant, opts) {
   const separator = label(variant, '。', '. ');
   const cite = [c.journal, c.date, c.volume].filter(Boolean).join(', ');
   let detail = [cite, c.note, c.desc].filter(Boolean).join(separator);
-  const metrics = paperMetrics(c, variant);
+  const metrics = paperMetrics(c, variant, opts);
   if (metrics) detail += (detail ? (/[.!?。！？]$/.test(detail) ? label(variant, '', ' ') : separator) : '') + metrics;
   return detail;
 }
 
-function conferenceDetail(c, variant) {
+function conferenceDetail(c, variant, opts) {
   const separator = label(variant, '。', '. ');
   const cite = [c.journal, c.date, c.volume].filter(Boolean).join(', ');
-  const level = c.partition ? label(variant, '会议级别：', 'Level: ') + c.partition : '';
+  const showLevel = !opts || opts.showPartition !== false;
+  const level = showLevel && c.partition ? label(variant, '会议级别：', 'Level: ') + c.partition : '';
   return [cite, c.note, level, c.desc].filter(Boolean).join(separator);
 }
 function awardParts(b, variant) {
@@ -438,7 +446,8 @@ function renderSectionHtml(section, items, variant) {
       if (isPatents) {
         out.push(`<li><b>${esc(b.title)}</b>${isEnglish(variant) ? ', ' : '，'}${esc(c.status || '')}${isEnglish(variant) ? '.' : '。'}</li>`);
       } else {
-        const detail = isConferences ? conferenceDetail(c, variant) : paperDetail(c, variant);
+        const flags = { showPartition: b._showPartition, showImpactFactor: b._showImpactFactor };
+        const detail = isConferences ? conferenceDetail(c, variant, flags) : paperDetail(c, variant, flags);
         const ending = /[.!?。！？]$/.test(detail) ? '' : (isEnglish(variant) ? '.' : '。');
         out.push(`<li><b>${esc(b.title)}</b>${detail ? (isEnglish(variant) ? '. ' : '。') + esc(detail) : ''}${ending}</li>`);
       }
@@ -641,7 +650,8 @@ function renderMarkdown(profile, blocks, variant) {
         if (isPatents) {
           block.push(`${counter}. **${b.title || ''}**${isEnglish(variant) ? ', ' : '，'}${c.status || ''}${isEnglish(variant) ? '.' : '。'}`);
         } else {
-          const detail = isConferences ? conferenceDetail(c, variant) : paperDetail(c, variant);
+          const flags = { showPartition: b._showPartition, showImpactFactor: b._showImpactFactor };
+          const detail = isConferences ? conferenceDetail(c, variant, flags) : paperDetail(c, variant, flags);
           const ending = /[.!?。！？]$/.test(detail) ? '' : (isEnglish(variant) ? '.' : '。');
           block.push(`${counter}. **${b.title || ''}**${detail ? (isEnglish(variant) ? '. ' : '。') + detail : ''}${ending}`);
         }

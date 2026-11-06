@@ -87,6 +87,40 @@ test('conference paper version overrides change only the selected version', () =
   assert.equal(conference.content.journal, '示例国际会议');
 });
 
+test('paper metrics can be hidden independently per resume version', () => {
+  const hidden = structuredClone(variant);
+  hidden.sections[0].items[0].ov = { showPartition: false, showImpactFactor: false };
+  for (const render of [renderVariantHtml, renderMarkdown]) {
+    const output = render({}, [paper], hidden);
+    assert.ok(!output.includes('中科院 1 区'));
+    assert.ok(!output.includes('IF:'));
+    assert.ok(output.includes('Science'));
+  }
+
+  const impactOnly = structuredClone(variant);
+  impactOnly.sections[0].items[0].ov = { showImpactFactor: false };
+  const impactOut = renderVariantHtml({}, [paper], impactOnly);
+  assert.ok(impactOut.includes('中科院 1 区'));
+  assert.ok(!impactOut.includes('IF:'));
+
+  const partitionOnly = structuredClone(variant);
+  partitionOnly.sections[0].items[0].ov = { showPartition: false };
+  const partitionOut = renderVariantHtml({}, [paper], partitionOnly);
+  assert.ok(!partitionOut.includes('中科院 1 区'));
+  assert.ok(partitionOut.includes('IF: 5.2'));
+
+  assert.ok(renderVariantHtml({}, [paper], variant).includes('IF: 5.2'));
+});
+
+test('conference level can be hidden per resume version', () => {
+  const custom = structuredClone(conferenceVariant);
+  custom.sections[0].items[0].ov = { showPartition: false };
+  const output = renderVariantHtml({}, [conference], custom);
+  assert.ok(!output.includes('CCF-A'));
+  assert.ok(output.includes('示例国际会议'));
+  assert.ok(renderVariantHtml({}, [conference], conferenceVariant).includes('CCF-A'));
+});
+
 test('AI extraction supports conference papers and creates a conference section', () => {
   const selected = normalizeResult({ profile: {}, blocks: [{
     type: 'conference_paper', title: '示例会议论文',

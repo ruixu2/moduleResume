@@ -232,7 +232,7 @@ details.jd pre {
 .sec-kind { font-size: 11.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 20px; padding: 1px 8px; }
 .sec-items { display: flex; flex-direction: column; gap: 6px; }
 .sec-item {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   border: 1px solid #e8ebf3; border-radius: 8px; padding: 6px 8px; background: #fafbfd;
 }
 .sec-item .block-title { flex: 1; font-size: 13px; }
