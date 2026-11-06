@@ -162,6 +162,7 @@ details.jd pre {
 .block-card.t-academic-service { border-top-color: #627cb2; }
 .block-card.t-award { border-top-color: #c5912e; }
 .block-card.t-paper { border-top-color: #8f6fce; }
+.block-card.t-conference-paper { border-top-color: #4f7bbf; }
 .block-card.t-unpublished-paper { border-top-color: #b98353; }
 .block-card.t-patent { border-top-color: #3fa3a3; }
 .block-card.t-custom { border-top-color: #a0a3b1; }
@@ -194,6 +195,7 @@ details.jd pre {
 .block-badge.t-academic-service { background: #edf1fb; color: #405989; border-color: #d1dcf0; }
 .block-badge.t-award { background: #fff7e3; color: #8a6017; border-color: #edd9a8; }
 .block-badge.t-paper { background: #f0ecfb; color: #5a3d94; border-color: #dfd5f4; }
+.block-badge.t-conference-paper { background: #eaf1fc; color: #2f5691; border-color: #d2e0f7; }
 .block-badge.t-unpublished-paper { background: #fbf1e8; color: #8a542a; border-color: #ecd5bf; }
 .block-badge.t-patent { background: #e8f6f6; color: #1f6f6f; border-color: #cdeaea; }
 .block-badge.t-custom { background: #f2f2f5; color: #555; border-color: #e2e2e8; }

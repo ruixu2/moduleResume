@@ -136,7 +136,7 @@
             <label style="margin-top:8px">排版主题
               <select id="edTheme" class="inp" style="width:100%"></select>
             </label>
-            <label style="margin-top:8px">证件照
+            <label style="margin-top:8px">证件照（基础信息）
               <select id="edPhoto" class="inp" style="width:100%"></select>
             </label>
             <label style="margin-top:8px">版本快照
@@ -144,8 +144,9 @@
             </label>
           </div>
           <div class="editor-photo-actions">
-            <button class="btn tiny" id="edPhotoUpload" type="button">＋ 手动加入证件照</button>
-            <span class="muted">也可在右侧简历预览的照片位置点击添加；照片用于当前版本</span>
+            <button class="btn tiny" id="edPhotoImport" type="button">＋ 从基础信息导入</button>
+            <button class="btn tiny" id="edPhotoUpload" type="button">＋ 上传本机图片</button>
+            <span class="muted">照片只用于当前版本；也可点击右侧预览的照片位置</span>
             <input id="edPhotoFile" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden>
           </div>
           <div id="edStylePanel" style="display:none;margin-top:10px;border-top:1px dashed #e3e7f0;padding-top:10px">

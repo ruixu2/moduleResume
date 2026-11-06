@@ -140,6 +140,60 @@ function photoAsJpeg(file) {
   });
 }
 
+/* ---------------- 版本证件照：从基础信息导入 ---------------- */
+async function applyVersionPhoto(photoId) {
+  if (!editingVariant) return;
+  editingVariant.photoId = photoId || '';
+  if (editingVariant.style && editingVariant.style.photoPos === 'none') {
+    editingVariant.style.photoPos = 'right';
+    const posSel = $('#stPhotoPos');
+    if (posSel) posSel.value = 'right';
+  }
+  fillPhotoOptions();
+  const sel = $('#edPhoto');
+  if (sel) sel.value = editingVariant.photoId || '';
+  await saveEditor(true);
+  refreshPreview();
+  closeModal();
+  toast(photoId ? '已使用基础信息中的证件照' : '已改为跟随基础信息默认照片');
+}
+
+function openPhotoPicker() {
+  if (!editingVariant) return;
+  const photos = (DB.profile && Array.isArray(DB.profile.photos)) ? DB.profile.photos : [];
+  const selected = editingVariant.photoId || '';
+  const defaultId = DB.profile.photoId || (photos[0] ? photos[0].id : '');
+  const followCurrent = !selected;
+  const cards = photos.map(ph => {
+    const isCurrent = selected ? ph.id === selected : ph.id === defaultId;
+    return '<div class="photo-card' + (isCurrent ? ' default' : '') + '" data-pick-photo="' + esc(ph.id) + '" style="cursor:pointer">' +
+      (isCurrent ? '<span class="pbadge">' + (selected ? '当前' : '跟随中') + '</span>' : '') +
+      '<img src="/assets/photos/' + encodeURIComponent(ph.file) + '" alt="' + esc(ph.name) + '">' +
+      '<div class="pname" title="' + esc(ph.name) + '">' + esc(ph.name) + '</div>' +
+      '<div class="pacts"><button type="button" class="btn tiny">使用</button></div>' +
+      '</div>';
+  }).join('');
+  const followCard = '<div class="photo-card' + (followCurrent ? ' default' : '') + '" data-pick-photo="" style="cursor:pointer">' +
+    (followCurrent ? '<span class="pbadge">当前</span>' : '') +
+    '<div style="width:92px;height:122px;display:flex;align-items:center;justify-content:center;text-align:center;border:1px dashed #b9c4dc;border-radius:4px;background:#fafbfd;color:#7a8499;font-size:12px;line-height:1.6">跟随<br>主档</div>' +
+    '<div class="pname">基础信息默认照片</div>' +
+    '<div class="pacts"><button type="button" class="btn tiny">使用</button></div>' +
+    '</div>';
+  modal(
+    '<h3>加入证件照</h3>' +
+    '<p class="muted" style="margin:-8px 0 12px">从基础信息中已有的证件照选择，或上传本机图片。选中的照片只用于当前简历版本。</p>' +
+    '<div class="photo-gallery">' + followCard + cards + '</div>' +
+    (photos.length ? '' : '<div class="empty" style="padding:16px 0">基础信息中还没有证件照，可点击下方按钮上传。</div>') +
+    '<div class="modal-actions"><button class="btn" id="photoPickUpload" type="button">＋ 上传本机图片</button>' +
+    '<span style="flex:1"></span><button class="btn" data-close>取消</button></div>'
+  );
+  $$('[data-pick-photo]', $('#modal-root')).forEach(card => {
+    card.onclick = () => applyVersionPhoto(card.getAttribute('data-pick-photo') || '');
+  });
+  const upload = $('#photoPickUpload');
+  if (upload) upload.onclick = () => { closeModal(); $('#edPhotoFile').click(); };
+}
+
 function openEditor(id) {
   const v = DB.variants.find(x => x.id === id);
   if (!v) return;
@@ -209,8 +263,8 @@ function decoratePreviewPhoto() {
   const btn = doc.createElement('button');
   btn.type = 'button';
   btn.className = 'preview-photo-action';
-  btn.innerHTML = '＋<br>手动加入<br>证件照';
-  btn.title = '选择本机图片，加入当前简历版本';
+  btn.innerHTML = '＋<br>加入<br>证件照';
+  btn.title = '从基础信息选择或上传本机照片';
   btn.style.cssText = 'width:2.75cm;height:3.67cm;flex:0 0 auto;display:flex;align-items:center;justify-content:center;' +
     'text-align:center;padding:0 6pt;border:1.5pt dashed #9db3d8;border-radius:4pt;background:#f7f9fc;' +
     'color:#1E386B;font:inherit;font-size:9.5pt;line-height:1.5;cursor:pointer';
@@ -218,8 +272,7 @@ function decoratePreviewPhoto() {
   btn.addEventListener('mouseleave', () => { btn.style.background = '#f7f9fc'; btn.style.borderColor = '#9db3d8'; });
   btn.addEventListener('click', e => {
     e.preventDefault();
-    const input = $('#edPhotoFile');
-    if (input) input.click();
+    openPhotoPicker();
   });
   head.appendChild(btn);
 }
@@ -326,6 +379,7 @@ const OV_FIELDS = {
   academic_service: [{ k: 'organization', l: '机构 / 期刊 / 学术组织' }, { k: 'position', l: '职务 / 角色' }, { k: 'start', l: '起始（年月）', month: true }, { k: 'end', l: '结束（年月，可空=至今）', month: true }, { k: 'desc', l: '职责与成果', big: true }],
   award:     [{ k: 'level', l: '获奖级别' }, { k: 'rank', l: '奖项等级' }, { k: 'date', l: '获奖时间' }, { k: 'organization', l: '颁奖单位' }, { k: 'recipient', l: '获奖身份 / 排名' }, { k: 'desc', l: '获奖说明 / 个人贡献', big: true }],
   paper:     [{ k: 'journal', l: '期刊名称' }, { k: 'partition', l: '分区' }, { k: 'impactFactor', l: '影响因子' }, { k: 'date', l: '发表时间' }, { k: 'volume', l: '卷期页码' }, { k: 'note', l: '作者位次备注' }, { k: 'desc', l: '简介', big: true }],
+  conference_paper: [{ k: 'journal', l: '会议名称' }, { k: 'partition', l: '会议级别 / 索引' }, { k: 'date', l: '会议时间' }, { k: 'volume', l: '会议地点 / 页码' }, { k: 'note', l: '作者位次备注' }, { k: 'desc', l: '简介', big: true }],
   unpublished_paper: [{ k: 'authors', l: '作者' }, { k: 'status', l: '稿件状态' }, { k: 'targetJournal', l: '拟投 / 投稿期刊' }, { k: 'note', l: '作者贡献或备注' }, { k: 'desc', l: '研究简介', big: true }],
   patent:    [{ k: 'status', l: '状态' }],
   custom:    [{ k: 'lines', l: '内容行（每行一条）', big: true, list: true }],
@@ -362,8 +416,8 @@ function openOverrideEditor(si, ii) {
   if (!b) { toast('素材块已被删除，无法定制'); return; }
   it.ov = it.ov || {};
   const fields = OV_FIELDS[b.type] || [{ k: 'text', l: '内容', big: true }];
-  const hasTitle = ['project', 'internship', 'academic_service', 'award', 'paper', 'unpublished_paper', 'patent', 'custom', 'thesis', 'course'].indexOf(b.type) >= 0;
-  const hasGroup = ['paper', 'unpublished_paper', 'patent'].indexOf(b.type) >= 0;
+  const hasTitle = ['project', 'internship', 'academic_service', 'award', 'paper', 'conference_paper', 'unpublished_paper', 'patent', 'custom', 'thesis', 'course'].indexOf(b.type) >= 0;
+  const hasGroup = ['paper', 'conference_paper', 'unpublished_paper', 'patent'].indexOf(b.type) >= 0;
 
   let html = '<h3>版本级定制 · ' + esc((TYPES[b.type] || {}).label || b.type) + '</h3>' +
     '<p class="muted" style="margin:-8px 0 12px">只对「' + esc(editingVariant.name || '当前版本') + '」生效，不改动素材块库；保持原文 = 不覆盖。</p>';
@@ -740,6 +794,7 @@ function bindEditorBar() {
   };
   $('#previewRefresh').onclick = () => refreshPreview();
   $('#previewOpen').onclick = () => window.open('/render/' + editingVariant.id, '_blank');
+  $('#edPhotoImport').onclick = openPhotoPicker;
   $('#edPhotoUpload').onclick = () => $('#edPhotoFile').click();
   $('#edPhotoFile').addEventListener('change', async e => {
     const file = e.target.files[0];

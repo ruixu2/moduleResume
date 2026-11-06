@@ -207,6 +207,13 @@ function paperDetail(c, variant) {
   if (metrics) detail += (detail ? (/[.!?。！？]$/.test(detail) ? label(variant, '', ' ') : separator) : '') + metrics;
   return detail;
 }
+
+function conferenceDetail(c, variant) {
+  const separator = label(variant, '。', '. ');
+  const cite = [c.journal, c.date, c.volume].filter(Boolean).join(', ');
+  const level = c.partition ? label(variant, '会议级别：', 'Level: ') + c.partition : '';
+  return [cite, c.note, level, c.desc].filter(Boolean).join(separator);
+}
 function awardParts(b, variant) {
   const c = b.content || {};
   return {
@@ -374,12 +381,12 @@ function renderSectionHtml(section, items, variant) {
       if (entry.desc) out.push(`<p>${esc(entry.desc)}</p>`);
     }
   } else if (kind === 'courses') {
+    out.push('<ul class="bullets courses">');
     for (const b of items) {
       const entry = courseParts(b, variant);
-      out.push(`<h3>${esc(entry.title)}</h3>`);
-      if (entry.meta) out.push(`<p class="proj-meta">${esc(entry.meta)}</p>`);
-      if (entry.desc) out.push(`<p>${esc(entry.desc)}</p>`);
+      out.push(`<li><b>${esc(entry.title)}</b>${entry.meta ? '　' + esc(entry.meta) : ''}</li>`);
     }
+    out.push('</ul>');
   } else if (kind === 'internships') {
     for (const b of items) {
       const entry = internshipParts(b, variant);
@@ -410,9 +417,13 @@ function renderSectionHtml(section, items, variant) {
       out.push(`<li><b>${esc(b.title)}</b>${isEnglish(variant) ? '. ' : '。'}${details.join(isEnglish(variant) ? '; ' : '；')}${ending}</li>`);
     }
     if (openList) out.push('</ol>');
-  } else if (kind === 'publications' || kind === 'patents') {
+  } else if (kind === 'publications' || kind === 'conferences' || kind === 'patents') {
     let counter = 0, currentGroup = null, openList = false;
-    const defaultGroup = kind === 'publications' ? label(variant, '期刊论文', 'Research papers') : label(variant, '专利', 'Patents');
+    const isPatents = kind === 'patents';
+    const isConferences = kind === 'conferences';
+    const defaultGroup = isPatents
+      ? label(variant, '专利', 'Patents')
+      : isConferences ? label(variant, '会议论文', 'Conference papers') : label(variant, '期刊论文', 'Research papers');
     for (const b of items) {
       const group = b.group || defaultGroup;
       if (group !== currentGroup) {
@@ -424,12 +435,12 @@ function renderSectionHtml(section, items, variant) {
       }
       counter += 1;
       const c = b.content;
-      if (kind === 'publications') {
-        const detail = paperDetail(c, variant);
+      if (isPatents) {
+        out.push(`<li><b>${esc(b.title)}</b>${isEnglish(variant) ? ', ' : '，'}${esc(c.status || '')}${isEnglish(variant) ? '.' : '。'}</li>`);
+      } else {
+        const detail = isConferences ? conferenceDetail(c, variant) : paperDetail(c, variant);
         const ending = /[.!?。！？]$/.test(detail) ? '' : (isEnglish(variant) ? '.' : '。');
         out.push(`<li><b>${esc(b.title)}</b>${detail ? (isEnglish(variant) ? '. ' : '。') + esc(detail) : ''}${ending}</li>`);
-      } else {
-        out.push(`<li><b>${esc(b.title)}</b>${isEnglish(variant) ? ', ' : '，'}${esc(c.status || '')}${isEnglish(variant) ? '.' : '。'}</li>`);
       }
     }
     if (openList) out.push('</ol>');
@@ -584,9 +595,7 @@ function renderMarkdown(profile, blocks, variant) {
     } else if (kind === 'courses') {
       for (const b of items) {
         const entry = courseParts(b, variant);
-        block.push(`### ${entry.title}`);
-        if (entry.meta) block.push(entry.meta);
-        if (entry.desc) block.push(entry.desc);
+        block.push(`- **${entry.title}**${entry.meta ? '　' + entry.meta : ''}`);
       }
     } else if (kind === 'internships') {
       for (const b of items) {
@@ -614,9 +623,13 @@ function renderMarkdown(profile, blocks, variant) {
         const ending = /[.!?。！？]$/.test(details[details.length - 1]) ? '' : (isEnglish(variant) ? '.' : '。');
         block.push(`${counter}. **${b.title || ''}**${isEnglish(variant) ? '. ' : '。'}${details.join(isEnglish(variant) ? '; ' : '；')}${ending}`);
       }
-    } else if (kind === 'publications' || kind === 'patents') {
+    } else if (kind === 'publications' || kind === 'conferences' || kind === 'patents') {
       let counter = 0, currentGroup = null;
-      const defaultGroup = kind === 'publications' ? label(variant, '期刊论文', 'Research papers') : label(variant, '专利', 'Patents');
+      const isPatents = kind === 'patents';
+      const isConferences = kind === 'conferences';
+      const defaultGroup = isPatents
+        ? label(variant, '专利', 'Patents')
+        : isConferences ? label(variant, '会议论文', 'Conference papers') : label(variant, '期刊论文', 'Research papers');
       for (const b of items) {
         const group = b.group || defaultGroup;
         if (group !== currentGroup) {
@@ -625,12 +638,12 @@ function renderMarkdown(profile, blocks, variant) {
         }
         counter += 1;
         const c = b.content;
-        if (kind === 'publications') {
-          const detail = paperDetail(c, variant);
+        if (isPatents) {
+          block.push(`${counter}. **${b.title || ''}**${isEnglish(variant) ? ', ' : '，'}${c.status || ''}${isEnglish(variant) ? '.' : '。'}`);
+        } else {
+          const detail = isConferences ? conferenceDetail(c, variant) : paperDetail(c, variant);
           const ending = /[.!?。！？]$/.test(detail) ? '' : (isEnglish(variant) ? '.' : '。');
           block.push(`${counter}. **${b.title || ''}**${detail ? (isEnglish(variant) ? '. ' : '。') + detail : ''}${ending}`);
-        } else {
-          block.push(`${counter}. **${b.title || ''}**${isEnglish(variant) ? ', ' : '，'}${c.status || ''}${isEnglish(variant) ? '.' : '。'}`);
         }
       }
     } else if (kind === 'custom') {

@@ -18,13 +18,17 @@ const variant = {
   sections: [{ title: '学习课程', kind: 'courses', items: [{ bid: course.id, ov: {} }] }],
 };
 
-test('course appears in all resume formats with every field', () => {
+test('courses render as one compact bullet per course', () => {
   for (const render of [renderVariantHtml, renderMarkdown, renderPage]) {
     const output = render({}, [course], variant);
-    for (const value of ['机器学习', '开课单位：示例大学', '专业必修', '2024.09 – 2024.12', '学分/学时：3 学分 / 48 学时', '成绩：92', '监督学习、无监督学习与模型评估']) {
+    for (const value of ['机器学习', '开课单位：示例大学', '专业必修', '2024.09 – 2024.12', '学分/学时：3 学分 / 48 学时', '成绩：92']) {
       assert.ok(output.includes(value), value);
     }
+    assert.ok(!output.includes('### 机器学习'));
+    assert.ok(!output.includes('监督学习、无监督学习与模型评估'));
   }
+  assert.ok(renderVariantHtml({}, [course], variant).includes('<ul class="bullets courses">'));
+  assert.ok(renderMarkdown({}, [course], variant).includes('- **机器学习**　开课单位：示例大学'));
 });
 
 test('version overrides change only the selected course version', () => {
@@ -36,7 +40,6 @@ test('version overrides change only the selected course version', () => {
   const html = renderVariantHtml({}, [course], custom);
   assert.ok(html.includes('机器学习（岗位定制）'));
   assert.ok(html.includes('成绩：95'));
-  assert.ok(html.includes('只保留与当前岗位相关的课程内容'));
   assert.ok(!html.includes('成绩：92'));
   assert.ok(renderVariantHtml({}, [course], variant).includes('成绩：92'));
   assert.deepEqual(course.content, {
@@ -52,7 +55,7 @@ test('optional fields, escaping and empty sections are handled', () => {
   const html = renderVariantHtml({}, [minimal], minimalVariant);
   assert.ok(html.includes('课程 A&amp;B'));
   assert.ok(html.includes('&lt;示例大学&gt;'));
-  assert.ok(html.includes('&lt;script&gt;bad&lt;/script&gt;'));
+  assert.ok(!html.includes('<script>'));
   assert.ok(!html.includes('undefined'));
 
   const empty = { sections: [{ title: '学习课程', kind: 'courses', items: [] }] };

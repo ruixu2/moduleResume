@@ -17,6 +17,7 @@ const TYPES = {
   academic_service: { label: '学术兼职', color: 't-academic-service' },
   award:     { label: '获奖经历', color: 't-award' },
   paper:     { label: '期刊论文', color: 't-paper' },
+  conference_paper: { label: '会议论文', color: 't-conference-paper' },
   unpublished_paper: { label: '未发表论文', color: 't-unpublished-paper' },
   patent:    { label: '专利',     color: 't-patent' },
   custom:    { label: '自定义',   color: 't-custom' },
@@ -34,10 +35,14 @@ const KINDS = {
   academic_services: { label: '学术兼职', types: ['academic_service'] },
   awards:       { label: '获奖经历',   types: ['award'] },
   publications: { label: '期刊论文列表', types: ['paper'] },
+  conferences:  { label: '会议论文列表', types: ['conference_paper'] },
   unpublished:  { label: '未发表论文列表', types: ['unpublished_paper'] },
   patents:      { label: '专利列表',   types: ['patent'] },
   custom:       { label: '自定义要点', types: ['custom', 'skill', 'summary'] },
 };
+
+const PAPER_TYPES = ['paper', 'conference_paper', 'unpublished_paper'];
+const PAPER_TYPE_LABELS = { paper: '期刊论文', conference_paper: '会议论文', unpublished_paper: '未发表论文' };
 
 /* ---------------- 状态 ---------------- */
 let DB = { profile: {}, blocks: [], variants: [], applications: [], snapshots: [], settings: {} };
@@ -216,8 +221,10 @@ function blockSub(b) {
     if (meta) return meta + (first ? '　' + String(first).slice(0, 40) : '');
     return String(first).slice(0, 60);
   }
-  if (b.type === 'paper') {
-    const metrics = [c.partition, c.impactFactor ? 'IF: ' + c.impactFactor : ''].filter(Boolean).join('，');
+  if (b.type === 'paper' || b.type === 'conference_paper') {
+    const metrics = b.type === 'paper'
+      ? [c.partition, c.impactFactor ? 'IF: ' + c.impactFactor : ''].filter(Boolean).join('，')
+      : (c.partition || '');
     const line = [c.journal, c.date, metrics ? '（' + metrics + '）' : ''].filter(Boolean).join('　');
     return line || String(c.desc || '').slice(0, 70);
   }
@@ -651,9 +658,11 @@ function openBlockModal(id, presetType) {
   let blockType = type;
   const m = modal(
     '<h3>' + (b ? '编辑素材块' : '新增素材块') + '</h3>' +
-    (b ? '<p class="muted" style="margin:-8px 0 12px">类型：' + (TYPES[type] || {}).label + '（类型不可修改）　·　内容自动保存</p>'
+    (b ? '<p id="bmTypeHint" class="muted" style="margin:-8px 0 12px">类型：' + (TYPES[type] || {}).label +
+           (PAPER_TYPES.includes(type) ? '（论文类型可切换）' : '（类型不可修改）') + '　·　内容自动保存</p>'
        : '<p class="muted" style="margin:-8px 0 12px">内容自动保存：首次输入后自动创建素材块，无需手动提交</p>' +
          '<label>类型<select id="bmType">' + Object.keys(TYPES).map(k => '<option value="' + k + '"' + (k === type ? ' selected' : '') + '>' + TYPES[k].label + '</option>').join('') + '</select></label>') +
+    '<div id="bmPaperTypeWrap"></div>' +
     '<div id="bmFields"></div>' +
     '<label>标签（逗号分隔，用于搜索与筛选）<input id="bmTags" value="' + esc(b ? (b.tags || []).join(', ') : '') + '"></label>' +
     '<div class="modal-actions"><span id="bmSaveState" class="muted" style="margin-right:auto"></span>' +
@@ -781,6 +790,18 @@ function openBlockModal(id, presetType) {
         '<label>影响因子（可空）<input id="fImpactFactor" value="' + esc(c.impactFactor || '') + '" placeholder="如：5.2（2024）"></label></div>' +
         '<label>卷期页码（可空，如：41(6): 1234-1245）<input id="fVolume" value="' + esc(c.volume || '') + '"></label>' +
         '<label>简介<textarea id="fDesc" rows="2">' + esc(c.desc || '') + '</textarea></label>';
+    } else if (t === 'conference_paper') {
+      html += '<label>论文题目<input id="fTitle" value="' + esc(cur ? cur.title : '') + '"></label>' +
+        '<div class="grid2">' +
+        '<label>分组（渲染为小标题，如：第一作者）<input id="fGroup" value="' + esc(cur ? cur.group : '第一作者') + '"></label>' +
+        '<label>作者位次备注（可空，如：（第二作者））<input id="fNote" value="' + esc(c.note || '') + '"></label></div>' +
+        '<div class="grid2">' +
+        '<label>会议名称（可空）<input id="fJournal" value="' + esc(c.journal || '') + '"></label>' +
+        '<label>会议时间（可空，如：2024.06）<input id="fDate" value="' + esc(c.date || '') + '"></label></div>' +
+        '<div class="grid2">' +
+        '<label>会议地点 / 页码（可空）<input id="fVolume" value="' + esc(c.volume || '') + '"></label>' +
+        '<label>会议级别 / 索引（可空，如：CCF-A / EI）<input id="fPartition" value="' + esc(c.partition || '') + '"></label></div>' +
+        '<label>简介<textarea id="fDesc" rows="2">' + esc(c.desc || '') + '</textarea></label>';
     } else if (t === 'unpublished_paper') {
       html += '<label>论文题目<input id="fTitle" value="' + esc(cur ? cur.title : '') + '"></label>' +
         '<div class="grid2">' +
@@ -802,6 +823,28 @@ function openBlockModal(id, presetType) {
     }
     $('#bmFields').innerHTML = html;
     if (['thesis', 'project', 'internship'].includes(t)) setupWorksEditor(cur);
+  }
+  /* 论文类型切换：期刊论文 / 会议论文 / 未发表论文 */
+  function renderPaperTypeControl() {
+    const wrap = $('#bmPaperTypeWrap');
+    if (!wrap) return;
+    if (!blockId || !PAPER_TYPES.includes(blockType)) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = '<label>论文类型（可随时切换，已填写内容会保留）<select id="bmPaperType">' +
+      PAPER_TYPES.map(k => '<option value="' + k + '"' + (k === blockType ? ' selected' : '') + '>' + PAPER_TYPE_LABELS[k] + '</option>').join('') +
+      '</select></label>';
+    const sel = $('#bmPaperType');
+    sel.onchange = () => {
+      const next = sel.value;
+      if (!PAPER_TYPES.includes(next)) return;
+      blockType = next;
+      const current = DB.blocks.find(x => x.id === blockId);
+      if (current) current.type = next;
+      const hint = $('#bmTypeHint');
+      if (hint) hint.textContent = '类型：' + (TYPES[next] || {}).label + '（论文类型可切换）　·　内容自动保存';
+      renderPaperTypeControl();
+      renderFields(next, current || b);
+      markDirty();
+    };
   }
   /* 主要工作：动态增删（学位论文 / 项目 / 实习共用；项目兼容旧版 bullets 字段） */
   function setupWorksEditor(cur) {
@@ -837,8 +880,8 @@ function openBlockModal(id, presetType) {
     const bt = blockId ? ((DB.blocks.find(x => x.id === blockId) || {}).type || blockType) : ($('#bmType') ? $('#bmType').value : blockType);
     blockType = bt;
     const get = sel => { const el = $(sel); return el ? el.value : ''; };
-    const content = {};
     const cur = blockId ? DB.blocks.find(x => x.id === blockId) : null;
+    const content = cur && cur.content ? JSON.parse(JSON.stringify(cur.content)) : {};
     let title = cur ? (cur.title || '') : '', group = cur ? (cur.group || '') : '';
     if (bt === 'summary') content.text = get('#fText');
     else if (bt === 'education') { content.start = get('#fStart').trim(); content.end = get('#fEnd').trim(); content.dates = eduDateLine(content); content.school = get('#fSchool').trim(); content.college = get('#fCollege').trim(); content.major = get('#fMajor').trim(); content.degreeType = get('#fDegreeType').trim(); content.advisor = get('#fAdvisor').trim(); }
@@ -854,7 +897,13 @@ function openBlockModal(id, presetType) {
     else if (bt === 'course') { title = get('#fTitle').trim(); content.organization = get('#fOrganization').trim(); content.courseType = get('#fCourseType').trim(); content.dates = get('#fDates').trim(); content.credits = get('#fCredits').trim(); content.score = get('#fScore').trim(); content.desc = get('#fDesc').trim(); }
     else if (bt === 'academic_service') { title = get('#fTitle').trim(); content.organization = get('#fOrganization').trim(); content.position = get('#fPosition').trim(); content.start = get('#fStart').trim(); content.end = get('#fEnd').trim(); content.desc = get('#fDesc').trim(); }
     else if (bt === 'award') { title = get('#fTitle').trim(); content.level = get('#fLevel').trim(); content.rank = get('#fRank').trim(); content.date = get('#fDate').trim(); content.organization = get('#fOrganization').trim(); content.recipient = get('#fRecipient').trim(); content.desc = get('#fDesc').trim(); }
-    else if (bt === 'paper') { title = get('#fTitle').trim(); group = get('#fGroup').trim(); content.note = get('#fNote').trim(); content.journal = get('#fJournal').trim(); content.partition = get('#fPartition').trim(); content.impactFactor = get('#fImpactFactor').trim(); content.date = get('#fDate').trim(); content.volume = get('#fVolume').trim(); content.desc = get('#fDesc'); }
+    else if (bt === 'paper' || bt === 'conference_paper') {
+      title = get('#fTitle').trim(); group = get('#fGroup').trim();
+      content.note = get('#fNote').trim(); content.journal = get('#fJournal').trim();
+      content.partition = get('#fPartition').trim(); content.date = get('#fDate').trim();
+      content.volume = get('#fVolume').trim(); content.desc = get('#fDesc');
+      if (bt === 'paper') content.impactFactor = get('#fImpactFactor').trim();
+    }
     else if (bt === 'unpublished_paper') { title = get('#fTitle').trim(); group = get('#fGroup').trim(); content.authors = get('#fAuthors').trim(); content.status = get('#fStatus').trim(); content.targetJournal = get('#fTargetJournal').trim(); content.note = get('#fNote').trim(); content.desc = get('#fDesc'); }
     else if (bt === 'patent') { title = get('#fTitle').trim(); group = get('#fGroup').trim(); content.status = get('#fStatus').trim(); }
     else { title = get('#fTitle').trim(); content.lines = get('#fRows').split('\n').map(s => s.trim()).filter(Boolean); }
@@ -877,8 +926,13 @@ function openBlockModal(id, presetType) {
       const sel = $('#bmType');
       if (sel) {
         const lab = sel.closest('label');
-        if (lab) lab.outerHTML = '<p class="muted" style="margin:-8px 0 12px">类型：' + esc((TYPES[data.type] || {}).label || data.type) + '（类型不可修改）　·　内容自动保存</p>';
+        if (lab) {
+          const paperSwitch = PAPER_TYPES.includes(data.type);
+          lab.outerHTML = '<p id="bmTypeHint" class="muted" style="margin:-8px 0 12px">类型：' + esc((TYPES[data.type] || {}).label || data.type) +
+            (paperSwitch ? '（论文类型可切换）' : '（类型不可修改）') + '　·　内容自动保存</p>';
+        }
       }
+      renderPaperTypeControl();
       const h3 = $('#modal-root .modal h3');
       if (h3) h3.textContent = '编辑素材块';
     } else {
@@ -898,6 +952,7 @@ function openBlockModal(id, presetType) {
     }
   }
 
+  renderPaperTypeControl();
   renderFields(type, b);
   if (!b) $('#bmType').onchange = e => renderFields(e.target.value, null);
 

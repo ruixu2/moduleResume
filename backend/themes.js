@@ -29,6 +29,7 @@ body { margin: 0; background: #e9edf3; font-family: "Microsoft YaHei", "微软�
 .resume .section-page-break { break-before: page; }
 .resume ul.bullets { margin: 2pt 0; padding-left: 15pt; }
 .resume ul.bullets li { margin: 2pt 0; }
+.resume ul.bullets.courses li { margin: 1.2pt 0; }
 .resume ul.bullets ul.skill-subitems { margin: 1.5pt 0 2pt 8pt; padding-left: 13pt; font-size: 9.5pt; list-style: circle; }
 .resume ul.bullets ul.skill-subitems li { margin: 1pt 0; }
 .resume ul.edu { list-style: none; margin: 2pt 0; padding: 0; }

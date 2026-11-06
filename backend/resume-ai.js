@@ -16,6 +16,7 @@ const BLOCK_FIELDS = {
   academic_service: ['organization', 'position', 'start', 'end', 'desc'],
   award: ['level', 'rank', 'date', 'organization', 'recipient', 'desc'],
   paper: ['note', 'journal', 'date', 'volume', 'partition', 'impactFactor', 'desc'],
+  conference_paper: ['note', 'journal', 'date', 'volume', 'partition', 'desc'],
   unpublished_paper: ['authors', 'status', 'targetJournal', 'note', 'desc'],
   patent: ['status'],
   custom: ['lines'],
@@ -95,7 +96,7 @@ const SYSTEM_PROMPT = [
   'profile 可用字段（均为字符串）：' + PROFILE_FIELDS.join(', ') + '。',
   'blocks 每项格式：{"type":"类型代码","title":"标题","group":"分组","tags":[],"content":{}}。content 只使用对应类型列出的字段：',
   ...Object.entries(BLOCK_FIELDS).map(([type, fields]) => type + ': ' + fields.join(', ')),
-  'works、items 和 lines 是字符串数组，其他字段是字符串。summary 是个人总结，education 是教育，advisor 是导师，thesis 是学位论文，skill 是技能（items 用于列出该技能的具体工具、方法或应用场景），project 是项目，internship 仅指实习经历，course 是学习过的课程，academic_service 是学术兼职，award 是获奖，paper 是发表论文，unpublished_paper 是未发表论文，patent 是专利。',
+  'works、items 和 lines 是字符串数组，其他字段是字符串。summary 是个人总结，education 是教育，advisor 是导师，thesis 是学位论文，skill 是技能（items 用于列出该技能的具体工具、方法或应用场景），project 是项目，internship 仅指实习经历，course 是学习过的课程，academic_service 是学术兼职，award 是获奖，paper 是期刊论文，conference_paper 是会议论文，unpublished_paper 是未发表论文，patent 是专利。',
   '正式工作及其他不适合以上类型的经历用 custom，title 保留名称，lines 保留原文细节；不能把正式工作当作实习。论文作者若无独立字段，可放进 desc。',
   '教育、实习和学术兼职的 start/end 如原文包含年月，使用 YYYY-MM；至今留空。如果只有年份或无法确定月份，原样保存在 dates 或其他文本中，不要虚构月份。',
   '原文的姓名、联系方式和成果均可能包含敏感信息，只按用户给出的内容提取。',
@@ -143,6 +144,7 @@ const SECTION_MAP = {
   academic_service: ['学术兼职', 'academic_services'], award: ['获奖经历', 'awards'],
   project: ['项目经历', 'projects'], paper: ['论文成果', 'publications'],
   course: ['学习课程', 'courses'],
+  conference_paper: ['会议论文', 'conferences'],
   unpublished_paper: ['未发表论文', 'unpublished'], patent: ['专利成果', 'patents'], custom: ['其他经历', 'custom'],
 };
 function buildImport(raw, workspace, date) {
